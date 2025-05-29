@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>¡BOOM!</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-EVSTQN3/azprG1Anm3QDgpJLIm9Nao0Yz1ztcQTwFspd3yD65VohhpuuCOmLASjC" crossorigin="anonymous">
+    <link rel="icon" type="image/png" href="./img/icono.png">
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./css/styles_inicio.css">
+</head>
+
+<body>
+
+    <!-- Video de fondo -->
+    <video id="video-fondo" autoplay muted loop>
+        <source src="./recursos/inicio.mp4" type="video/mp4">
+        Tu navegador no soporta videos en HTML5.
+    </video>
+
+    <div class="container">
+        <div class="mb-3">
+            <h1 class="mb-2">¡BOOM!</h1>
+        </div>
+        <button class="start-button mt-4" onclick="startGame()">Jugar</button>
+
+        <button class="start-button mt-5 " data-bs-toggle="modal" data-bs-target="#instructionsModal">
+            <span class="text-container" id="instructions-btn">
+                <span class="text">INSTRUCCIONES</span>
+            </span>
+        </button>
+    </div>
+
+    <!-- Modal de instrucciones -->
+    <div class="modal fade" id="instructionsModal" tabindex="-1" aria-labelledby="instructionsModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title" id="instructionsModalLabel">Instrucciones del juego</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="modal-body">
+                        <p><strong>Objetivo:</strong> Explora el laberinto y desactiva todas las bombas escondidas.</p>
+                        <ul class="list-unstyled">
+                            <li>Tienes <strong>8 minutos</strong> para completar el juego.</li>
+                            <li>Por cada bomba desactivada, se agrega <strong>1 minuto</strong> adicional al tiempo.
+                            </li>
+                        </ul>
+
+                        <p><strong>Controles:</strong></p>
+                        <ul class="list-unstyled">
+                            <li><kbd>W</kbd> / <kbd>A</kbd> / <kbd>S</kbd> / <kbd>D</kbd>: Mover al jugador</li>
+                            <li><kbd>E</kbd>: Desactivar bomba (debes estar a menos de 2 metros)</li>
+                            <li><kbd>P</kbd>: Pausar el juego</li>
+                            <li><kbd>M</kbd>: Mostrar el mapa del laberinto</li>
+                            <li><strong>Click izquierdo del mouse</strong>: Lanzar esferas</li>
+                        </ul>
+
+                        <p><strong>Desactivación de bombas:</strong></p>
+                        <ul class="list-unstyled">
+                            <li>Del lado superior derecho de la pantalla esta el indicador de <strong>distancia</strong> que te ayudara a encontrar las bombas</li>
+                            <li>Debes mantenerte a menos de <strong>2 metros</strong> de la bomba.</li>
+                            <li>El proceso de desactivación dura <strong>5 segundos</strong>.</li>
+                            <li>Si te alejas más de 2 metros durante el proceso, este se reinicia.</li>
+                        </ul>
+
+                        <p><strong>Super poderes:</strong></p>
+                        <ul class="list-unstyled">
+                            <li>Al lanzar una esfera y golpear un <strong>bloque mágico</strong>, obtendrás un super
+                                poder.</li>
+                            <li>Los super poderes pueden ser:</li>
+                            <ul class="list-unstyled ms-3">
+                                <li><strong>Super velocidad</strong>: Aumenta tu velocidad de movimiento.</li>
+                                <li><strong>Super salto</strong>: Permite saltos más altos.</li>
+                            </ul>
+                            <li>El super poder tiene una duración de <strong>15 segundos</strong>.</li>
+                        </ul>
+
+                        <h2>
+                            ¡Buena suerte!
+                        </h2>
+                    </div>
+
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary bg-danger" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Footer -->
+    <footer class="text-white text-center py-2 mt-4">
+        <p class="pt-3">&copy; 2025. Todos los derechos reservados | Juan Armando Castillo Rodríguez</p>
+    </footer>
+
+    <script>
+        function startGame() {
+            window.location.href = "juego.html"; // Redirige a la página del juego
+        }
+    </script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+
+</html>
