@@ -4,6 +4,8 @@ import { Octree } from 'three/addons/math/Octree.js';
 import { Capsule } from 'three/addons/math/Capsule.js';
 
 import { VRButton } from 'three/addons/webxr/VRButton.js';
+import { XRControllerModelFactory } from 'three/addons/webxr/XRControllerModelFactory.js';
+import { XRHandModelFactory } from 'three/addons/webxr/XRHandModelFactory.js';
 
 const clock = new THREE.Clock();
 
@@ -14,15 +16,8 @@ scene.fog = new THREE.Fog(0x88ccee, 0, 50);
 const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 1000);
 camera.rotation.order = 'YXZ';
 
-const player = new THREE.Group();
-player.add(camera);
-scene.add(player);
-
-let controllerRight, controllerGripRight;
-let joystickInput = { x: 0, y: 0 };
-
 // Cambiar orientación inicial
-camera.lookAt(new THREE.Vector3(camera.position.x - 1, camera.position.y, camera.position.z));  // mirar hacia +X (ejemplo)
+camera.lookAt(new THREE.Vector3(playerRig.position.x - 1, playerRig.position.y, playerRig.position.z));  // mirar hacia +X (ejemplo)
 
 const fillLight1 = new THREE.HemisphereLight(0x8dc1de, 0x00668d, 1.5);
 fillLight1.position.set(2, 1, 1);
@@ -48,21 +43,15 @@ const container = document.getElementById('container');
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setPixelRatio(window.devicePixelRatio);
 renderer.setSize(window.innerWidth, window.innerHeight);
-renderer.xr.enabled = true;  // <-- HABILITAR VR
 
-controllerRight = renderer.xr.getController(1);
-scene.add(controllerRight);
-
-controllerGripRight = renderer.xr.getControllerGrip(1);
-scene.add(controllerGripRight);
+// ACTIVAR VR
+renderer.xr.enabled = true;
+document.body.appendChild(VRButton.createButton(renderer));
 
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.VSMShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 container.appendChild(renderer.domElement);
-
-// Agregar esto:
-document.body.appendChild(VRButton.createButton(renderer));
 
 const GRAVITY = 50;
 
@@ -99,97 +88,79 @@ for (let i = 0; i < NUM_SPHERES; i++) {
 const worldOctree = new Octree();
 
 const playerCollider = new Capsule(new THREE.Vector3(50, 0, 0), new THREE.Vector3(50, 0.65, 0), 0.35);
-// Función helper para crear elementos con estilos base
-function crearElementoHUD(tag, estilos = {}) {
-    const elemento = document.createElement(tag);
 
-    // Estilos base comunes
-    const estilosBase = {
-        position: 'absolute',
-        fontFamily: 'Arial',
-        borderRadius: '8px',
-        textAlign: 'center'
-    };
+// Crear elemento HTML para el contador (centrado arriba)
+const contadorElement = document.createElement('div');
+contadorElement.style.position = 'absolute';
+contadorElement.style.top = '20px';
+contadorElement.style.left = '50%';
+contadorElement.style.transform = 'translateX(-50%)';
+contadorElement.style.padding = '10px 20px';
+contadorElement.style.backgroundColor = 'rgba(0,0,0,0.5)';
+contadorElement.style.color = 'white';
+contadorElement.style.fontFamily = 'Arial';
+contadorElement.style.fontSize = '20px';
+contadorElement.style.borderRadius = '8px';
+contadorElement.style.textAlign = 'center';
+document.body.appendChild(contadorElement);
 
-    // Combinar estilos base con estilos específicos
-    Object.assign(elemento.style, estilosBase, estilos);
-    document.body.appendChild(elemento);
+const superpoderIndicator = document.createElement('div');
+superpoderIndicator.style.position = 'absolute';
+superpoderIndicator.style.top = '75px'; // Debajo del cronómetro (ajusta si quieres)
+superpoderIndicator.style.left = '50%';
+superpoderIndicator.style.transform = 'translateX(-50%)';
+superpoderIndicator.style.padding = '8px 16px';
+superpoderIndicator.style.backgroundColor = 'rgba(0,0,0,0.5)';
+superpoderIndicator.style.color = 'cyan';
+superpoderIndicator.style.fontFamily = 'Arial';
+superpoderIndicator.style.fontSize = '16px';
+superpoderIndicator.style.borderRadius = '8px';
+superpoderIndicator.style.textAlign = 'center';
+superpoderIndicator.style.display = 'none';
+document.body.appendChild(superpoderIndicator);
 
-    return elemento;
-}
+// Crear fondo oscuro (overlay), oculto inicialmente
+const overlay = document.createElement('div');
+overlay.style.position = 'fixed';
+overlay.style.top = '0';
+overlay.style.left = '0';
+overlay.style.width = '100%';
+overlay.style.height = '100%';
+overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.6)'; // Negro con transparencia
+overlay.style.display = 'none';
+overlay.style.zIndex = '999'; // Debajo de la imagen
+document.body.appendChild(overlay);
 
-// Crear todos los elementos del HUD de una vez
-const elementos = {
-    contador: crearElementoHUD('div', {
-        top: '20px',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        padding: '10px 20px',
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        color: 'white',
-        fontSize: '20px'
-    }),
+// Crear imagen grande (oculta inicialmente)
+const imagenGrande = document.createElement('img');
+imagenGrande.src = './img/Mapa.png'; // <-- Cambia esto por tu imagen
+imagenGrande.style.position = 'fixed';
+imagenGrande.style.top = '50%';
+imagenGrande.style.left = '50%';
+imagenGrande.style.transform = 'translate(-50%, -50%)';
+imagenGrande.style.maxWidth = '80%';
+imagenGrande.style.maxHeight = '80%';
+imagenGrande.style.display = 'none';
+imagenGrande.style.zIndex = '1000'; // Encima del overlay
+document.body.appendChild(imagenGrande);
 
-    superpoderIndicator: crearElementoHUD('div', {
-        top: '75px',
-        left: '50%',
-        transform: 'translateX(-50%)',
-        padding: '8px 16px',
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        color: 'cyan',
-        fontSize: '16px',
-        display: 'none'
-    }),
-
-    overlay: crearElementoHUD('div', {
-        position: 'fixed',
-        top: '0',
-        left: '0',
-        width: '100%',
-        height: '100%',
-        backgroundColor: 'rgba(0, 0, 0, 0.6)',
-        display: 'none',
-        zIndex: '999',
-        transition: 'opacity 0.4s'
-    }),
-
-    imagenGrande: crearElementoHUD('img', {
-        position: 'fixed',
-        top: '50%',
-        left: '50%',
-        transform: 'translate(-50%, -50%)',
-        maxWidth: '80%',
-        maxHeight: '80%',
-        display: 'none',
-        zIndex: '1000'
-    })
-};
-
-// Configurar propiedades específicas que no son CSS
-elementos.imagenGrande.src = './img/Mapa.png';
-
-// Destructuring para mantener compatibilidad con el código existente
-const { contador: contadorElement, superpoderIndicator, overlay, imagenGrande } = elementos;
+overlay.style.transition = 'opacity 0.4s';
 
 let juegoPausado = false;
 let intervaloContador = null; // Para controlar el cronómetro y pausarlo
 let tiempoRestante = 8 * 60;  // Mover esta variable fuera de la función iniciarContador
-
-const Text = window.Troika.Text;
 
 // Función para iniciar la cuenta regresiva de 8 minutos
 function iniciarContador() {
     function actualizarContador() {
         const minutos = Math.floor(tiempoRestante / 60);
         const segundos = tiempoRestante % 60;
-        textoTiempo.text = `Tiempo restante: ${minutos}:${segundos.toString().padStart(2, '0')}`;
-        textoTiempo.sync();
+        contadorElement.textContent = `Tiempo restante: ${minutos}:${segundos.toString().padStart(2, '0')}`;
 
         if (tiempoRestante <= 0) {
             clearInterval(intervaloContador);
-            textoTiempo.text = '¡Tiempo agotado!';
-            textoTiempo.color = 0xff0000;
-            textoTiempo.sync();
+            contadorElement.textContent = '¡Tiempo agotado!';
+            contadorElement.style.color = 'red';
 
             mostrarPantallaDerrota(); // <-- Agrega esta línea aquí
         }
@@ -202,17 +173,6 @@ function iniciarContador() {
             actualizarContador();
         }
     }, 1000);
-
-    const textoTiempo = new Text();
-    textoTiempo.text = 'Tiempo restante: 08:00';
-    textoTiempo.fontSize = 0.25;
-    textoTiempo.position.set(0, 1.8, -1.5);  // Delante de la cámara
-    textoTiempo.color = 0xffffff;
-    textoTiempo.anchorX = 'center';
-    textoTiempo.anchorY = 'middle';
-    textoTiempo.sync();  // Necesario
-
-    camera.add(textoTiempo); // Se mueve con la cámara
 
 }
 
@@ -373,7 +333,7 @@ function updatePlayer(deltaTime) {
 
     playerCollisions();
 
-    player.position.copy(playerCollider.end);
+    playerRig.position.copy(playerCollider.end);
 
 }
 
@@ -498,19 +458,6 @@ function updateSpheres(deltaTime) {
 
 }
 
-function updateJoystickInput() {
-    const session = renderer.xr.getSession();
-    if (!session) return;
-
-    for (const source of session.inputSources) {
-        if (source && source.handedness === 'right' && source.gamepad) {
-            const [x, y] = source.gamepad.axes;
-            joystickInput.x = x;
-            joystickInput.y = y;
-        }
-    }
-}
-
 function getForwardVector() {
 
     camera.getWorldDirection(playerDirection);
@@ -534,33 +481,41 @@ function getSideVector() {
 
 function controls(deltaTime) {
 
-    updateJoystickInput();
-
     if (juegoPausado || juegoGanado || imagenMostrada) return;  // No mover si está pausado
 
     // gives a bit of air control
     const speedDelta = deltaTime * (playerOnFloor ? 25 : 8) * SPEED_MULTIPLIER;
 
-    if (renderer.xr.isPresenting) {
-        const speedDelta = deltaTime * 5 * SPEED_MULTIPLIER;
+    if (keyStates['KeyW']) {
 
-        const direction = new THREE.Vector3();
-        camera.getWorldDirection(direction);
-        direction.y = 0;
-        direction.normalize();
+        playerVelocity.add(getForwardVector().multiplyScalar(speedDelta));
 
-        const side = new THREE.Vector3().crossVectors(camera.up, direction).normalize();
+    }
 
-        player.position.addScaledVector(direction, -joystickInput.y * speedDelta);
-        player.position.addScaledVector(side, -joystickInput.x * speedDelta);
+    if (keyStates['KeyS']) {
 
-        playerCollider.translate(new THREE.Vector3(-joystickInput.x * speedDelta, 0, -joystickInput.y * speedDelta));
+        playerVelocity.add(getForwardVector().multiplyScalar(- speedDelta));
+
+    }
+
+    if (keyStates['KeyA']) {
+
+        playerVelocity.add(getSideVector().multiplyScalar(- speedDelta));
+
+    }
+
+    if (keyStates['KeyD']) {
+
+        playerVelocity.add(getSideVector().multiplyScalar(speedDelta));
+
     }
 
     if (playerOnFloor) {
 
         if (keyStates['Space']) {
+
             playerVelocity.y = 15;
+
         }
 
     }
@@ -568,6 +523,7 @@ function controls(deltaTime) {
 }
 
 const loader = new GLTFLoader().setPath('./models/');
+
 loader.load('Laberinto.glb', (gltf) => {
 
     scene.add(gltf.scene);
@@ -591,6 +547,11 @@ loader.load('Laberinto.glb', (gltf) => {
 
     });
 
+    const playerRig = new THREE.Group();
+playerRig.position.set(50, 0, 0); // 🚀 Esta es la posición inicial
+playerRig.add(camera);
+scene.add(playerRig);
+
     // Llamar a iniciarContador() cuando se genere el personaje
     // (Solo llama esto en la función donde creas al personaje)
     iniciarContador();
@@ -599,16 +560,14 @@ loader.load('Laberinto.glb', (gltf) => {
 
 function teleportPlayerIfOob() {
 
-    if (camera.position.y <= - 25) {
+    if (playerRig.position.y <= - 25) {
 
-        playerCollider.start.set(50, 0, 0);
-        playerCollider.end.set(50, 0.65, 0);
+        playerRig.position.set(50, 0, 0);
         playerCollider.radius = 0.35;
-        camera.position.copy(playerCollider.end);
         camera.rotation.set(0, 0, 0);
 
         // Cambiar orientación inicial
-        camera.lookAt(new THREE.Vector3(camera.position.x - 1, camera.position.y, camera.position.z));  // mirar hacia +X (ejemplo)
+        camera.lookAt(new THREE.Vector3(playerRig.position.x - 1, playerRig.position.y, playerRig.position.z));  // mirar hacia +X (ejemplo)
 
     }
 
@@ -682,6 +641,11 @@ function animate() {
     const delta = clock.getDelta();
     const deltaTime = Math.min(0.05, delta) / STEPS_PER_FRAME;
 
+    // NUEVO: Obtener posición real del visor (headset)
+    const vrCamera = renderer.xr.getCamera(camera); // <- Cámara estéreo real
+    const headsetPosition = new THREE.Vector3();
+    headsetPosition.setFromMatrixPosition(vrCamera.matrixWorld);
+
     for (let i = 0; i < STEPS_PER_FRAME; i++) {
 
         controls(deltaTime);
@@ -694,16 +658,16 @@ function animate() {
     // Actualizar indicador de distancia a bombas
     if (bombaOriginal && bombaClon1 && bombaClon2 && bombaClon3 && bombaClon4 && bombaClon5 && bombaClon6 && bombaClon7 && bombaClon8 && bombaClon9) {
 
-        const distOriginal = camera.position.distanceTo(bombaOriginal.position);
-        const distClon1 = camera.position.distanceTo(bombaClon1.position);
-        const distClon2 = camera.position.distanceTo(bombaClon2.position);
-        const distClon3 = camera.position.distanceTo(bombaClon3.position);
-        const distClon4 = camera.position.distanceTo(bombaClon4.position);
-        const distClon5 = camera.position.distanceTo(bombaClon5.position);
-        const distClon6 = camera.position.distanceTo(bombaClon6.position);
-        const distClon7 = camera.position.distanceTo(bombaClon7.position);
-        const distClon8 = camera.position.distanceTo(bombaClon8.position);
-        const distClon9 = camera.position.distanceTo(bombaClon9.position);
+        const distOriginal = headsetPosition.distanceTo(bombaOriginal.position);
+        const distClon1 = playerRig.position.distanceTo(bombaClon1.position);
+        const distClon2 = playerRig.position.distanceTo(bombaClon2.position);
+        const distClon3 = playerRig.position.distanceTo(bombaClon3.position);
+        const distClon4 = playerRig.position.distanceTo(bombaClon4.position);
+        const distClon5 = playerRig.position.distanceTo(bombaClon5.position);
+        const distClon6 = playerRig.position.distanceTo(bombaClon6.position);
+        const distClon7 = playerRig.position.distanceTo(bombaClon7.position);
+        const distClon8 = playerRig.position.distanceTo(bombaClon8.position);
+        const distClon9 = playerRig.position.distanceTo(bombaClon9.position);
 
 
         // Determinar bomba más cercana y su distancia
@@ -746,7 +710,7 @@ function animate() {
 
             // Cancelar desactivación si te alejas
             if (desactivando && bombaEnProceso) {
-                const distanciaActual = camera.position.distanceTo(bombaEnProceso.position);
+                const distanciaActual = playerRig.position.distanceTo(bombaEnProceso.position);
                 if (distanciaActual > 2) {
                     clearTimeout(desactivarTimeout);
                     mensajeInteraccion.innerText = 'Desactivación cancelada (demasiado lejos)';
@@ -821,6 +785,10 @@ function animate() {
         }
 
     }
+
+    playerCollider.end.copy(headsetPosition); // ajusta según altura
+    playerCollider.start.set(headsetPosition.x, headsetPosition.y - 0.65, headsetPosition.z);
+    playerRig.position.copy(playerCollider.end); // útil para efectos visuales fuera de VR
 
     renderer.render(scene, camera);
 
@@ -918,62 +886,54 @@ loadGLTF(CHARACTER_PATH)
         console.log(error);
     });
 
-// Función para aplicar múltiples estilos a un elemento
-function aplicarEstilos(elemento, estilos) {
-    Object.assign(elemento.style, estilos);
-}
-
-// Función para crear botones del menú
-function crearBoton(texto, onClick) {
-    const boton = document.createElement('button');
-    boton.textContent = texto;
-    aplicarEstilos(boton, {
-        margin: '10px',
-        padding: '10px 20px',
-        fontSize: '18px',
-    });
-    boton.onclick = onClick;
-    return boton;
-}
-
-// Crear menú de pausa
+// Menú de pausa (overlay oscuro con botones)
 const pausaMenu = document.createElement('div');
-aplicarEstilos(pausaMenu, {
-    position: 'fixed',
-    top: '50%',
-    left: '50%',
-    transform: 'translate(-50%, -50%)',
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    padding: '30px',
-    borderRadius: '10px',
-    display: 'none',
-    zIndex: '1001',
-    textAlign: 'center',
-});
+pausaMenu.style.position = 'fixed';
+pausaMenu.style.top = '50%';
+pausaMenu.style.left = '50%';
+pausaMenu.style.transform = 'translate(-50%, -50%)';
+pausaMenu.style.backgroundColor = 'rgba(0, 0, 0, 0.8)';
+pausaMenu.style.padding = '30px';
+pausaMenu.style.borderRadius = '10px';
+pausaMenu.style.display = 'none';
+pausaMenu.style.zIndex = '1001';
+pausaMenu.style.textAlign = 'center';
 
-// Crear y añadir botones
-pausaMenu.appendChild(crearBoton('Reanudar', reanudarJuego));
-pausaMenu.appendChild(crearBoton('Salir', () => location.href = 'index.html'));
+// Botón Reanudar
+const botonReanudar = document.createElement('button');
+botonReanudar.textContent = 'Reanudar';
+botonReanudar.style.margin = '10px';
+botonReanudar.style.padding = '10px 20px';
+botonReanudar.style.fontSize = '18px';
+botonReanudar.onclick = reanudarJuego;
+pausaMenu.appendChild(botonReanudar);
 
-// Crear texto "PAUSADO"
+// Botón Salir
+const botonSalir = document.createElement('button');
+botonSalir.textContent = 'Salir';
+botonSalir.style.margin = '10px';
+botonSalir.style.padding = '10px 20px';
+botonSalir.style.fontSize = '18px';
+botonSalir.onclick = () => location.href = 'index.html'; // Redirige a otra página
+pausaMenu.appendChild(botonSalir);
+
+// Crear texto "PAUSADO" (oculto inicialmente)
 const textoPausado = document.createElement('div');
 textoPausado.textContent = 'PAUSADO';
-aplicarEstilos(textoPausado, {
-    position: 'fixed',
-    top: '35%',
-    left: '50%',
-    transform: 'translate(-50%, -50%)',
-    color: 'white',
-    fontFamily: 'Arial',
-    fontSize: '48px',
-    fontWeight: 'bold',
-    textShadow: '2px 2px 8px rgba(0,0,0,0.7)',
-    display: 'none',
-    zIndex: '1001',
-});
+textoPausado.style.position = 'fixed';
+textoPausado.style.top = '35%';
+textoPausado.style.left = '50%';
+textoPausado.style.transform = 'translate(-50%, -50%)';
+textoPausado.style.color = 'white';
+textoPausado.style.fontFamily = 'Arial';
+textoPausado.style.fontSize = '48px';
+textoPausado.style.fontWeight = 'bold';
+textoPausado.style.textShadow = '2px 2px 8px rgba(0,0,0,0.7)';
+textoPausado.style.display = 'none';
+textoPausado.style.zIndex = '1001'; // Encima de todo
+document.body.appendChild(textoPausado);
 
 document.body.appendChild(pausaMenu);
-document.body.appendChild(textoPausado);
 
 function pausarJuego() {
     juegoPausado = true;
