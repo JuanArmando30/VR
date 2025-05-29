@@ -17,7 +17,7 @@ const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerH
 camera.rotation.order = 'YXZ';
 
 // Cambiar orientación inicial
-camera.lookAt(new THREE.Vector3(playerRig.position.x - 1, playerRig.position.y, playerRig.position.z));  // mirar hacia +X (ejemplo)
+camera.lookAt(new THREE.Vector3(camera.position.x - 1, camera.position.y, camera.position.z));  // mirar hacia +X (ejemplo)
 
 const fillLight1 = new THREE.HemisphereLight(0x8dc1de, 0x00668d, 1.5);
 fillLight1.position.set(2, 1, 1);
@@ -333,7 +333,7 @@ function updatePlayer(deltaTime) {
 
     playerCollisions();
 
-    playerRig.position.copy(playerCollider.end);
+    camera.position.copy(playerCollider.end);
 
 }
 
@@ -560,14 +560,14 @@ scene.add(playerRig);
 
 function teleportPlayerIfOob() {
 
-    if (playerRig.position.y <= - 25) {
+    if (camera.position.y <= - 25) {
 
         playerRig.position.set(50, 0, 0);
         playerCollider.radius = 0.35;
         camera.rotation.set(0, 0, 0);
 
         // Cambiar orientación inicial
-        camera.lookAt(new THREE.Vector3(playerRig.position.x - 1, playerRig.position.y, playerRig.position.z));  // mirar hacia +X (ejemplo)
+        camera.lookAt(new THREE.Vector3(camera.position.x - 1, camera.position.y, camera.position.z));  // mirar hacia +X (ejemplo)
 
     }
 
@@ -659,15 +659,15 @@ function animate() {
     if (bombaOriginal && bombaClon1 && bombaClon2 && bombaClon3 && bombaClon4 && bombaClon5 && bombaClon6 && bombaClon7 && bombaClon8 && bombaClon9) {
 
         const distOriginal = headsetPosition.distanceTo(bombaOriginal.position);
-        const distClon1 = playerRig.position.distanceTo(bombaClon1.position);
-        const distClon2 = playerRig.position.distanceTo(bombaClon2.position);
-        const distClon3 = playerRig.position.distanceTo(bombaClon3.position);
-        const distClon4 = playerRig.position.distanceTo(bombaClon4.position);
-        const distClon5 = playerRig.position.distanceTo(bombaClon5.position);
-        const distClon6 = playerRig.position.distanceTo(bombaClon6.position);
-        const distClon7 = playerRig.position.distanceTo(bombaClon7.position);
-        const distClon8 = playerRig.position.distanceTo(bombaClon8.position);
-        const distClon9 = playerRig.position.distanceTo(bombaClon9.position);
+        const distClon1 = camera.position.distanceTo(bombaClon1.position);
+        const distClon2 = camera.position.distanceTo(bombaClon2.position);
+        const distClon3 = camera.position.distanceTo(bombaClon3.position);
+        const distClon4 = camera.position.distanceTo(bombaClon4.position);
+        const distClon5 = camera.position.distanceTo(bombaClon5.position);
+        const distClon6 = camera.position.distanceTo(bombaClon6.position);
+        const distClon7 = camera.position.distanceTo(bombaClon7.position);
+        const distClon8 = camera.position.distanceTo(bombaClon8.position);
+        const distClon9 = camera.position.distanceTo(bombaClon9.position);
 
 
         // Determinar bomba más cercana y su distancia
@@ -710,7 +710,7 @@ function animate() {
 
             // Cancelar desactivación si te alejas
             if (desactivando && bombaEnProceso) {
-                const distanciaActual = playerRig.position.distanceTo(bombaEnProceso.position);
+                const distanciaActual = camera.position.distanceTo(bombaEnProceso.position);
                 if (distanciaActual > 2) {
                     clearTimeout(desactivarTimeout);
                     mensajeInteraccion.innerText = 'Desactivación cancelada (demasiado lejos)';
@@ -788,7 +788,7 @@ function animate() {
 
     playerCollider.end.copy(headsetPosition); // ajusta según altura
     playerCollider.start.set(headsetPosition.x, headsetPosition.y - 0.65, headsetPosition.z);
-    playerRig.position.copy(playerCollider.end); // útil para efectos visuales fuera de VR
+    camera.position.copy(playerCollider.end); // útil para efectos visuales fuera de VR
 
     renderer.render(scene, camera);
 
