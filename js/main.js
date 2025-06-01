@@ -48,6 +48,9 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.xr.enabled = true;
 document.body.appendChild(VRButton.createButton(renderer));
 
+const controller = renderer.xr.getController(0); // controlador derecho (0 o 1 según el caso)
+scene.add(controller);
+
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.VSMShadowMap;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -85,9 +88,56 @@ for (let i = 0; i < NUM_SPHERES; i++) {
 
 }
 
+function processControllerInput(deltaTime) {
+    const session = renderer.xr.getSession();
+    if (!session) return;
+
+    for (const source of session.inputSources) {
+
+        if (!source.gamepad) continue;
+
+        const axes = source.gamepad.axes;
+
+        // Intenta con axes[0]/[1]
+        let x = axes[0] || 0;
+        let y = axes[1] || 0;
+
+        // Si están en cero, intenta con [2]/[3]
+        if (Math.abs(x) < 0.01 && Math.abs(y) < 0.01 && axes.length >= 4) {
+            x = axes[2] || 0;
+            y = axes[3] || 0;
+        }
+
+        // Solo mover si hay movimiento real
+        if (Math.abs(x) > 0.01 || Math.abs(y) > 0.01) {
+            const speed = deltaTime * 10 * SPEED_MULTIPLIER;
+
+            const forward = getForwardVector().multiplyScalar(-y * speed);
+            const side = getSideVector().multiplyScalar(x * speed);
+
+            playerVelocity.add(forward).add(side);
+        }
+
+        if (source.handedness === 'right') {
+            const buttons = source.gamepad.buttons;
+            const buttonA = buttons[1]; // "A" normalmente es el botón 0
+
+            // Detectar si se presionó "A"
+            if (buttonA?.pressed && playerOnFloor) {
+                playerVelocity.y = 15; // Fuerza del salto
+            }
+        }
+    }
+}
+
 const worldOctree = new Octree();
 
-const playerCollider = new Capsule(new THREE.Vector3(50, 0, 0), new THREE.Vector3(50, 0.65, 0), 0.35);
+const playerStart = new THREE.Vector3(45, 0, 0); // misma posición que el playerRig
+const playerCollider = new Capsule(
+    playerStart.clone(),
+    playerStart.clone().add(new THREE.Vector3(0, 0.65, 0)),
+    0.35
+);
 
 // Crear elemento HTML para el contador (centrado arriba)
 const contadorElement = document.createElement('div');
@@ -333,7 +383,7 @@ function updatePlayer(deltaTime) {
 
     playerCollisions();
 
-    camera.position.copy(playerCollider.end);
+    playerRig.position.copy(playerCollider.end.clone().add(new THREE.Vector3(0, -0.65, 0)));
 
 }
 
@@ -459,24 +509,22 @@ function updateSpheres(deltaTime) {
 }
 
 function getForwardVector() {
-
-    camera.getWorldDirection(playerDirection);
-    playerDirection.y = 0;
-    playerDirection.normalize();
-
-    return playerDirection;
-
+    const xrCamera = renderer.xr.getCamera(camera); // obtiene XRArrayCamera
+    const direction = new THREE.Vector3();
+    xrCamera.getWorldDirection(direction);
+    direction.y = 0;
+    direction.normalize();
+    return direction;
 }
 
 function getSideVector() {
-
-    camera.getWorldDirection(playerDirection);
-    playerDirection.y = 0;
-    playerDirection.normalize();
-    playerDirection.cross(camera.up);
-
-    return playerDirection;
-
+    const xrCamera = renderer.xr.getCamera(camera);
+    const direction = new THREE.Vector3();
+    xrCamera.getWorldDirection(direction);
+    direction.y = 0;
+    direction.normalize();
+    direction.cross(new THREE.Vector3(0, 1, 0));
+    return direction;
 }
 
 function controls(deltaTime) {
@@ -524,6 +572,8 @@ function controls(deltaTime) {
 
 const loader = new GLTFLoader().setPath('./models/');
 
+let playerRig;
+
 loader.load('Laberinto.glb', (gltf) => {
 
     scene.add(gltf.scene);
@@ -547,10 +597,11 @@ loader.load('Laberinto.glb', (gltf) => {
 
     });
 
-    const playerRig = new THREE.Group();
-playerRig.position.set(50, 0, 0); // 🚀 Esta es la posición inicial
-playerRig.add(camera);
-scene.add(playerRig);
+    playerRig = new THREE.Group();
+    playerRig.position.copy(playerStart); // usa la misma posición
+    playerRig.position.set(40, 1, 1); // Esta es la posición inicial
+    playerRig.add(camera);
+    scene.add(playerRig);
 
     // Llamar a iniciarContador() cuando se genere el personaje
     // (Solo llama esto en la función donde creas al personaje)
@@ -562,7 +613,7 @@ function teleportPlayerIfOob() {
 
     if (camera.position.y <= - 25) {
 
-        playerRig.position.set(50, 0, 0);
+        playerRig.position.copy(playerStart);
         playerCollider.radius = 0.35;
         camera.rotation.set(0, 0, 0);
 
@@ -649,6 +700,7 @@ function animate() {
     for (let i = 0; i < STEPS_PER_FRAME; i++) {
 
         controls(deltaTime);
+        processControllerInput(deltaTime);
         updatePlayer(deltaTime);
         updateSpheres(deltaTime);
         teleportPlayerIfOob();
@@ -786,9 +838,9 @@ function animate() {
 
     }
 
-    playerCollider.end.copy(headsetPosition); // ajusta según altura
-    playerCollider.start.set(headsetPosition.x, headsetPosition.y - 0.65, headsetPosition.z);
-    camera.position.copy(playerCollider.end); // útil para efectos visuales fuera de VR
+    const rigPosition = playerRig.position;
+    playerCollider.start.set(rigPosition.x, rigPosition.y, rigPosition.z);
+    playerCollider.end.set(rigPosition.x, rigPosition.y + 0.65, rigPosition.z);
 
     renderer.render(scene, camera);
 
