@@ -72,6 +72,12 @@ const sphereMaterial = new THREE.MeshLambertMaterial({ color: 0xdede8d });
 const spheres = [];
 let sphereIdx = 0;
 
+let vrDistanciaSprite;
+let vrDistanciaText = '';
+
+let vrMensajeSprite;
+let vrMensajeText = '';
+
 for (let i = 0; i < NUM_SPHERES; i++) {
 
     const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
@@ -140,6 +146,7 @@ const playerCollider = new Capsule(
 );
 
 // Crear elemento HTML para el contador (centrado arriba)
+/*
 const contadorElement = document.createElement('div');
 contadorElement.style.position = 'absolute';
 contadorElement.style.top = '20px';
@@ -153,6 +160,7 @@ contadorElement.style.fontSize = '20px';
 contadorElement.style.borderRadius = '8px';
 contadorElement.style.textAlign = 'center';
 document.body.appendChild(contadorElement);
+*/
 
 const superpoderIndicator = document.createElement('div');
 superpoderIndicator.style.position = 'absolute';
@@ -200,17 +208,22 @@ let juegoPausado = false;
 let intervaloContador = null; // Para controlar el cronómetro y pausarlo
 let tiempoRestante = 8 * 60;  // Mover esta variable fuera de la función iniciarContador
 
+let vrContadorSprite;
+let vrContadorText = '';
+
 // Función para iniciar la cuenta regresiva de 8 minutos
 function iniciarContador() {
     function actualizarContador() {
         const minutos = Math.floor(tiempoRestante / 60);
         const segundos = tiempoRestante % 60;
-        contadorElement.textContent = `Tiempo restante: ${minutos}:${segundos.toString().padStart(2, '0')}`;
+        vrContadorText = `Tiempo restante: ${minutos}:${segundos.toString().padStart(2, '0')}`;
+        actualizarVRContador(vrContadorText);
+
 
         if (tiempoRestante <= 0) {
             clearInterval(intervaloContador);
-            contadorElement.textContent = '¡Tiempo agotado!';
-            contadorElement.style.color = 'red';
+            vrContadorText = '¡Tiempo agotado!';
+            actualizarVRContador(vrContadorText);
 
             mostrarPantallaDerrota(); // <-- Agrega esta línea aquí
         }
@@ -224,6 +237,55 @@ function iniciarContador() {
         }
     }, 1000);
 
+}
+
+function actualizarVRContador(texto) {
+    const canvas = vrContadorSprite.material.map.image;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = 'white';
+    ctx.font = '48px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(texto, canvas.width / 2, 80);
+
+    vrContadorSprite.material.map.needsUpdate = true;
+}
+
+function actualizarVRDistancia(texto, color = 'lime') {
+    const canvas = vrDistanciaSprite.material.map.image;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = color;
+    ctx.font = '36px Arial';
+    ctx.textAlign = 'center';
+
+    const lineas = texto.split('\n');
+    for (let i = 0; i < lineas.length; i++) {
+        ctx.fillText(lineas[i], canvas.width / 2, 50 + i * 40);
+    }
+
+    vrDistanciaSprite.material.map.needsUpdate = true;
+}
+
+function actualizarVRMensaje(texto) {
+    const canvas = vrMensajeSprite.material.map.image;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = 'white';
+    ctx.font = '42px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(texto, canvas.width / 2, 80);
+
+    vrMensajeSprite.material.map.needsUpdate = true;
 }
 
 const playerVelocity = new THREE.Vector3();
@@ -601,6 +663,68 @@ loader.load('Laberinto.glb', (gltf) => {
     playerRig.position.copy(playerStart); // usa la misma posición
     playerRig.position.set(40, 1, 1); // Esta es la posición inicial
     playerRig.add(camera);
+
+    const canvas = document.createElement('canvas');
+    canvas.width = 512;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = 'white';
+    ctx.font = '48px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText('Tiempo restante: 8:00', canvas.width / 2, 80);
+
+    const texture = new THREE.CanvasTexture(canvas);
+    const material = new THREE.SpriteMaterial({ map: texture });
+    vrContadorSprite = new THREE.Sprite(material);
+    vrContadorSprite.scale.set(2.1, 0.5, .2); // tamaño del sprite
+
+    camera.add(vrContadorSprite);
+    vrContadorSprite.position.set(0, 1.6, -2); // delante y debajo del centro visual
+
+    const canvasDistancia = document.createElement('canvas');
+    canvasDistancia.width = 512;
+    canvasDistancia.height = 128;
+    const ctxDistancia = canvasDistancia.getContext('2d');
+
+    ctxDistancia.fillStyle = 'rgba(0,0,0,0.5)';
+    ctxDistancia.fillRect(0, 0, canvasDistancia.width, canvasDistancia.height);
+    ctxDistancia.fillStyle = 'lime';
+    ctxDistancia.font = '40px Arial';
+    ctxDistancia.textAlign = 'center';
+    ctxDistancia.fillText('Calculando...', canvasDistancia.width / 2, 80);
+
+    const textureDistancia = new THREE.CanvasTexture(canvasDistancia);
+    const materialDistancia = new THREE.SpriteMaterial({ map: textureDistancia });
+    vrDistanciaSprite = new THREE.Sprite(materialDistancia);
+    vrDistanciaSprite.scale.set(2.7, 0.5, .9); // tamaño del sprite
+
+    camera.add(vrDistanciaSprite);
+    vrDistanciaSprite.position.set(2.7, 1.6, -2); // 👈 arriba a la derecha
+
+    const canvasMsg = document.createElement('canvas');
+    canvasMsg.width = 512;
+    canvasMsg.height = 128;
+    const ctxMsg = canvasMsg.getContext('2d');
+
+    ctxMsg.fillStyle = 'rgba(0,0,0,0.5)';
+    ctxMsg.fillRect(0, 0, canvasMsg.width, canvasMsg.height);
+    ctxMsg.fillStyle = 'white';
+    ctxMsg.font = '42px Arial';
+    ctxMsg.textAlign = 'center';
+    ctxMsg.fillText('Interactúa con la bomba', canvasMsg.width / 2, 80);
+
+    const textureMsg = new THREE.CanvasTexture(canvasMsg);
+    const materialMsg = new THREE.SpriteMaterial({ map: textureMsg, transparent: true });
+    vrMensajeSprite = new THREE.Sprite(materialMsg);
+    vrMensajeSprite.scale.set(2.5, 0.6, 1);
+
+    // Por defecto oculto (lo movemos lejos al inicio)
+    vrMensajeSprite.position.set(0, -5, 0);
+    camera.add(vrMensajeSprite);
+
     scene.add(playerRig);
 
     // Llamar a iniciarContador() cuando se genere el personaje
@@ -633,7 +757,7 @@ document.body.appendChild(footer);
 let bombaOriginal, bombaClon1, bombaClon2, bombaClon3, bombaClon4, bombaClon5, bombaClon6, bombaClon7, bombaClon8, bombaClon9;
 
 // Crear elemento HTML para mostrar distancia (HUD a la derecha)
-const distanciaIndicator = document.createElement('div');
+/*const distanciaIndicator = document.createElement('div');
 distanciaIndicator.style.position = 'absolute';
 distanciaIndicator.style.top = '20px';
 distanciaIndicator.style.right = '15px'; // <-- Mover a la derecha
@@ -645,7 +769,8 @@ distanciaIndicator.style.fontSize = '16px';
 distanciaIndicator.style.borderRadius = '8px';
 distanciaIndicator.style.whiteSpace = 'pre'; // Permitir saltos de línea con \n
 document.body.appendChild(distanciaIndicator);
-
+*/
+/*
 const mensajeInteraccion = document.createElement('div');
 mensajeInteraccion.style.position = 'absolute';
 mensajeInteraccion.style.bottom = '20px';
@@ -659,6 +784,7 @@ mensajeInteraccion.style.fontSize = '18px';
 mensajeInteraccion.style.borderRadius = '10px';
 mensajeInteraccion.style.display = 'none'; // Oculto por defecto
 document.body.appendChild(mensajeInteraccion);
+*/
 
 const mensajeSuperpoder = document.createElement('div');
 mensajeSuperpoder.style.position = 'absolute';
@@ -711,15 +837,15 @@ function animate() {
     if (bombaOriginal && bombaClon1 && bombaClon2 && bombaClon3 && bombaClon4 && bombaClon5 && bombaClon6 && bombaClon7 && bombaClon8 && bombaClon9) {
 
         const distOriginal = headsetPosition.distanceTo(bombaOriginal.position);
-        const distClon1 = camera.position.distanceTo(bombaClon1.position);
-        const distClon2 = camera.position.distanceTo(bombaClon2.position);
-        const distClon3 = camera.position.distanceTo(bombaClon3.position);
-        const distClon4 = camera.position.distanceTo(bombaClon4.position);
-        const distClon5 = camera.position.distanceTo(bombaClon5.position);
-        const distClon6 = camera.position.distanceTo(bombaClon6.position);
-        const distClon7 = camera.position.distanceTo(bombaClon7.position);
-        const distClon8 = camera.position.distanceTo(bombaClon8.position);
-        const distClon9 = camera.position.distanceTo(bombaClon9.position);
+        const distClon1 = headsetPosition.distanceTo(bombaClon1.position);
+        const distClon2 = headsetPosition.distanceTo(bombaClon2.position);
+        const distClon3 = headsetPosition.distanceTo(bombaClon3.position);
+        const distClon4 = headsetPosition.distanceTo(bombaClon4.position);
+        const distClon5 = headsetPosition.distanceTo(bombaClon5.position);
+        const distClon6 = headsetPosition.distanceTo(bombaClon6.position);
+        const distClon7 = headsetPosition.distanceTo(bombaClon7.position);
+        const distClon8 = headsetPosition.distanceTo(bombaClon8.position);
+        const distClon9 = headsetPosition.distanceTo(bombaClon9.position);
 
 
         // Determinar bomba más cercana y su distancia
@@ -748,26 +874,28 @@ function animate() {
                 color = 'orange';
             }
 
-            distanciaIndicator.style.color = color;
-            distanciaIndicator.innerText = `${bombaCercana.nombre}\nDistancia: ${bombaCercana.distancia.toFixed(2)} m`;
+            const texto = `${bombaCercana.nombre}\nDistancia: ${bombaCercana.distancia.toFixed(2)} m`;
+            actualizarVRDistancia(texto, color);
 
-            if (!desactivando && bombaCercana.distancia < 2 && !bombaDesactivada.has(bombaCercana.objeto)) {
-                mensajeInteraccion.innerText = 'Presiona "E" para desactivar';
-                mensajeInteraccion.style.display = 'block';
+            if (!desactivando && bombaCercana.distancia < 3 && !bombaDesactivada.has(bombaCercana.objeto)) {
+                vrMensajeSprite.position.set(0, -0.8, -2); // Mostrar mensaje en VR (frente al visor)
+                actualizarVRMensaje('Desactivar con "A"');
                 bombaInteractuable = bombaCercana.objeto;
             } else if (!desactivando) {
-                mensajeInteraccion.style.display = 'none';
+                vrMensajeSprite.position.set(0, -5, 0); // Ocultar moviéndolo lejos
                 bombaInteractuable = null;
             }
 
             // Cancelar desactivación si te alejas
             if (desactivando && bombaEnProceso) {
                 const distanciaActual = camera.position.distanceTo(bombaEnProceso.position);
-                if (distanciaActual > 2) {
+                if (distanciaActual > 3) {
                     clearTimeout(desactivarTimeout);
-                    mensajeInteraccion.innerText = 'Desactivación cancelada (demasiado lejos)';
+                    actualizarVRMensaje('Desactivación cancelada');
+                    vrMensajeSprite.position.set(0, -0.8, -2);
+
                     setTimeout(() => {
-                        mensajeInteraccion.style.display = 'none';
+                        vrMensajeSprite.position.set(0, -5, 0);
                     }, 2000);
                     desactivando = false;
                     bombaEnProceso = null;
@@ -775,8 +903,7 @@ function animate() {
             }
         } else {
             // Si ya no hay bombas activas
-            distanciaIndicator.innerText = 'Todas las bombas están desactivadas';
-            distanciaIndicator.style.color = 'white';
+            actualizarVRDistancia('Todas las bombas\nestán desactivadas', 'white');
             mensajeInteraccion.style.display = 'none';
             bombaInteractuable = null;
 
