@@ -631,21 +631,18 @@ function updateSpheres(deltaTime) {
 }
 
 function getForwardVector() {
-    const xrCamera = renderer.xr.getCamera(camera); // obtiene XRArrayCamera
-    const direction = new THREE.Vector3();
-    xrCamera.getWorldDirection(direction);
+    const direction = new THREE.Vector3(0, 0, -1); // hacia adelante en Z local
+    direction.applyQuaternion(playerRig.quaternion);
     direction.y = 0;
     direction.normalize();
     return direction;
 }
 
 function getSideVector() {
-    const xrCamera = renderer.xr.getCamera(camera);
-    const direction = new THREE.Vector3();
-    xrCamera.getWorldDirection(direction);
+    const direction = new THREE.Vector3(1, 0, 0); // hacia la izquierda en X local
+    direction.applyQuaternion(playerRig.quaternion);
     direction.y = 0;
     direction.normalize();
-    direction.cross(new THREE.Vector3(0, 1, 0));
     return direction;
 }
 
@@ -827,10 +824,10 @@ loader.load('Laberinto.glb', (gltf) => {
     const textureDistancia = new THREE.CanvasTexture(canvasDistancia);
     const materialDistancia = new THREE.SpriteMaterial({ map: textureDistancia });
     vrDistanciaSprite = new THREE.Sprite(materialDistancia);
-    vrDistanciaSprite.scale.set(1.62, 0.3, 0.54); // 60% de cada valor original
+    vrDistanciaSprite.scale.set(1.13, 0.21, 0.378); // 60% de cada valor original
 
     camera.add(vrDistanciaSprite);
-    vrDistanciaSprite.position.set(2.7, 1, -2); // 👈 arriba a la derecha
+    vrDistanciaSprite.position.set(0, .74, -2); // 👈 arriba a la derecha
 
     const canvasMsg = document.createElement('canvas');
     canvasMsg.width = 512;
@@ -954,7 +951,7 @@ loader.load('Laberinto.glb', (gltf) => {
     vrFooterSprite = new THREE.Sprite(materialFooter);
     vrFooterSprite.scale.set(5, 0.6, 1); // ancho, alto, profundidad
 
-    vrFooterSprite.position.set(0, -1, -2); // parte inferior del visor
+    vrFooterSprite.position.set(0, -.9, -2); // parte inferior del visor
     camera.add(vrFooterSprite);
 
     scene.add(playerRig);
