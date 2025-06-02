@@ -49,7 +49,20 @@ renderer.xr.enabled = true;
 document.body.appendChild(VRButton.createButton(renderer));
 
 const controller = renderer.xr.getController(0); // controlador derecho (0 o 1 según el caso)
+controller.userData.selectPressed = false;
 scene.add(controller);
+
+const geometryLine = new THREE.BufferGeometry().setFromPoints([
+    new THREE.Vector3(0, 0, 0),
+    new THREE.Vector3(0, 0, -1)
+]);
+const laser = new THREE.Line(
+    geometryLine,
+    new THREE.LineBasicMaterial({ color: 0xffff00 })
+);
+laser.name = 'laser';
+laser.scale.z = 4;
+controller.add(laser);
 
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.VSMShadowMap;
@@ -77,6 +90,8 @@ let vrDistanciaText = '';
 
 let vrMensajeSprite;
 let vrMensajeText = '';
+
+let disparando = false;
 
 for (let i = 0; i < NUM_SPHERES; i++) {
 
@@ -126,11 +141,38 @@ function processControllerInput(deltaTime) {
 
         if (source.handedness === 'right') {
             const buttons = source.gamepad.buttons;
-            const buttonA = buttons[1]; // "A" normalmente es el botón 0
+            const buttonGB = buttons[1]; // gatillo bajo normalmente es el botón 0
+            const buttonA = buttons[4];
+            const buttonB = buttons[5];
+            const buttonGP = buttons[0];
+            controller.userData.selectPressed = buttons[0]?.pressed || false;
 
-            // Detectar si se presionó "A"
-            if (buttonA?.pressed && playerOnFloor) {
+            // Detectar si se presionó "GB"
+            if (buttonGB?.pressed && playerOnFloor) {
                 playerVelocity.y = 15; // Fuerza del salto
+            }
+
+            // Desactivar bomba si hay bomba interactuable y no está desactivada
+            if (buttonA?.pressed && bombaInteractuable && !bombaDesactivada.has(bombaInteractuable) && !desactivando) {
+                desactivarBomba(bombaInteractuable);
+            }
+            if (buttonB?.pressed) {
+                toggleMenuVR();
+            }
+
+            if (buttonB?.pressed && !menuVRGroup.visible) {
+                toggleMenuVR();
+            }
+
+            const triggerPressed = buttons[0]?.pressed || false;
+
+            if (buttonGB?.pressed || triggerPressed && !disparando) {
+                throwBall(); // 👉 dispara al presionar el gatillo
+                disparando = true;
+            }
+
+            if (!triggerPressed) {
+                disparando = false;
             }
         }
     }
@@ -208,6 +250,10 @@ let juegoPausado = false;
 let intervaloContador = null; // Para controlar el cronómetro y pausarlo
 let tiempoRestante = 8 * 60;  // Mover esta variable fuera de la función iniciarContador
 
+let menuVRGroup;
+let botonReanudarVR;
+let botonSalirVR;
+
 let vrContadorSprite;
 let vrContadorText = '';
 
@@ -274,6 +320,8 @@ function actualizarVRDistancia(texto, color = 'lime') {
 }
 
 function actualizarVRMensaje(texto) {
+    console.log("Mensaje VR:", texto); // 👈 Añade esta línea
+
     const canvas = vrMensajeSprite.material.map.image;
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -379,24 +427,26 @@ function onWindowResize() {
 }
 
 function throwBall() {
-
-    if (juegoPausado) return;  // No lanzar si está pausado
+    if (juegoPausado) return;
 
     const sphere = spheres[sphereIdx];
 
-    camera.getWorldDirection(playerDirection);
+    // Obtener dirección del controlador (derecho)
+    const controllerMatrix = controller.matrixWorld;
+    const origin = new THREE.Vector3();
+    const direction = new THREE.Vector3(0, 0, -1); // dirección hacia adelante del control
 
-    sphere.collider.center.copy(playerCollider.end).addScaledVector(playerDirection, playerCollider.radius * 1.5);
+    origin.setFromMatrixPosition(controllerMatrix);
+    direction.applyMatrix4(new THREE.Matrix4().extractRotation(controllerMatrix)).normalize();
 
-    // throw the ball with more force if we hold the button longer, and if we move forward
+    // Posición inicial: un poco delante del controlador
+    sphere.collider.center.copy(origin).addScaledVector(direction, 0.5);
 
-    const impulse = 15 + 30 * (1 - Math.exp((mouseTime - performance.now()) * 0.001));
-
-    sphere.velocity.copy(playerDirection).multiplyScalar(impulse);
-    sphere.velocity.addScaledVector(playerVelocity, 2);
+    // Velocidad inicial hacia donde apunta el control
+    const impulse = 20; // Puedes ajustar la fuerza
+    sphere.velocity.copy(direction).multiplyScalar(impulse);
 
     sphereIdx = (sphereIdx + 1) % spheres.length;
-
 }
 
 function playerCollisions() {
@@ -684,6 +734,73 @@ loader.load('Laberinto.glb', (gltf) => {
     camera.add(vrContadorSprite);
     vrContadorSprite.position.set(0, 1.6, -2); // delante y debajo del centro visual
 
+    // Crear grupo que contiene el menú de pausa en VR
+    menuVRGroup = new THREE.Group();
+    menuVRGroup.visible = false; // Oculto al inicio
+    camera.add(menuVRGroup);
+    menuVRGroup.position.set(0, 0, -2); // Justo al frente del visor
+
+    // Fondo negro del menú
+    const fondoMenu = new THREE.Mesh(
+        new THREE.PlaneGeometry(3.5, 2),
+        new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.8 })
+    );
+    menuVRGroup.add(fondoMenu);
+
+    // Botón Reanudar
+    botonReanudarVR = new THREE.Mesh(
+        new THREE.BoxGeometry(1.5, 0.4, 0.05),
+        new THREE.MeshBasicMaterial({ color: 0x4444ff })
+    );
+    botonReanudarVR.position.set(0, 0.4, 0.01);
+    botonReanudarVR.name = 'reanudar';
+    menuVRGroup.add(botonReanudarVR);
+
+    // Texto "Reanudar"
+    const canvas1 = document.createElement('canvas');
+    canvas1.width = 256;
+    canvas1.height = 64;
+    const ctx1 = canvas1.getContext('2d');
+    ctx1.fillStyle = 'white';
+    ctx1.font = '32px Arial';
+    ctx1.textAlign = 'center';
+    ctx1.fillText('Reanudar', 128, 40);
+    const tex1 = new THREE.CanvasTexture(canvas1);
+    const textoReanudar = new THREE.Mesh(
+        new THREE.PlaneGeometry(1.5, 0.4),
+        new THREE.MeshBasicMaterial({ map: tex1, transparent: true })
+    );
+    textoReanudar.position.copy(botonReanudarVR.position);
+    textoReanudar.position.z += 0.03;
+    menuVRGroup.add(textoReanudar);
+
+    // Botón Salir
+    botonSalirVR = new THREE.Mesh(
+        new THREE.BoxGeometry(1.5, 0.4, 0.05),
+        new THREE.MeshBasicMaterial({ color: 0xff4444 })
+    );
+    botonSalirVR.position.set(0, -0.3, 0.01);
+    botonSalirVR.name = 'salir';
+    menuVRGroup.add(botonSalirVR);
+
+    // Texto "Salir"
+    const canvas2 = document.createElement('canvas');
+    canvas2.width = 256;
+    canvas2.height = 64;
+    const ctx2 = canvas2.getContext('2d');
+    ctx2.fillStyle = 'white';
+    ctx2.font = '32px Arial';
+    ctx2.textAlign = 'center';
+    ctx2.fillText('Salir', 128, 40);
+    const tex2 = new THREE.CanvasTexture(canvas2);
+    const textoSalir = new THREE.Mesh(
+        new THREE.PlaneGeometry(1.5, 0.4),
+        new THREE.MeshBasicMaterial({ map: tex2, transparent: true })
+    );
+    textoSalir.position.copy(botonSalirVR.position);
+    textoSalir.position.z += 0.03;
+    menuVRGroup.add(textoSalir);
+
     const canvasDistancia = document.createElement('canvas');
     canvasDistancia.width = 512;
     canvasDistancia.height = 128;
@@ -813,6 +930,9 @@ let cronometroActivo = true;
 
 let juegoGanado = false;
 
+const raycaster = new THREE.Raycaster();
+const tempMatrix = new THREE.Matrix4();
+
 function animate() {
 
     const delta = clock.getDelta();
@@ -877,30 +997,12 @@ function animate() {
             const texto = `${bombaCercana.nombre}\nDistancia: ${bombaCercana.distancia.toFixed(2)} m`;
             actualizarVRDistancia(texto, color);
 
-            if (!desactivando && bombaCercana.distancia < 3 && !bombaDesactivada.has(bombaCercana.objeto)) {
+            if (!desactivando && bombaCercana.distancia < 2.5 && !bombaDesactivada.has(bombaCercana.objeto)) {
                 vrMensajeSprite.position.set(0, -0.8, -2); // Mostrar mensaje en VR (frente al visor)
-                actualizarVRMensaje('Desactivar con "A"');
+                actualizarVRMensaje('Presiona "A" para desactivar');
                 bombaInteractuable = bombaCercana.objeto;
-            } else if (!desactivando) {
-                vrMensajeSprite.position.set(0, -5, 0); // Ocultar moviéndolo lejos
-                bombaInteractuable = null;
             }
 
-            // Cancelar desactivación si te alejas
-            if (desactivando && bombaEnProceso) {
-                const distanciaActual = camera.position.distanceTo(bombaEnProceso.position);
-                if (distanciaActual > 3) {
-                    clearTimeout(desactivarTimeout);
-                    actualizarVRMensaje('Desactivación cancelada');
-                    vrMensajeSprite.position.set(0, -0.8, -2);
-
-                    setTimeout(() => {
-                        vrMensajeSprite.position.set(0, -5, 0);
-                    }, 2000);
-                    desactivando = false;
-                    bombaEnProceso = null;
-                }
-            }
         } else {
             // Si ya no hay bombas activas
             actualizarVRDistancia('Todas las bombas\nestán desactivadas', 'white');
@@ -970,6 +1072,34 @@ function animate() {
     playerCollider.end.set(rigPosition.x, rigPosition.y + 0.65, rigPosition.z);
 
     renderer.render(scene, camera);
+
+    if (menuVRGroup.visible) {
+        tempMatrix.identity().extractRotation(controller.matrixWorld);
+        raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
+        raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
+
+        const intersected = raycaster.intersectObjects([botonReanudarVR, botonSalirVR], false);
+
+        if (intersected.length > 0) {
+            const boton = intersected[0].object;
+
+            // Destacar el botón
+            boton.material.color.set(0xffff00);
+
+            // Si se presiona el gatillo
+            if (controller.userData.selectPressed && boton.name === 'reanudar') {
+                toggleMenuVR(); // Ocultar menú y reanudar
+            }
+
+            if (controller.userData.selectPressed && boton.name === 'salir') {
+                location.href = 'index.html'; // O salir del juego
+            }
+        } else {
+            // Resetear colores si no hay colisión
+            botonReanudarVR.material.color.set(0x4444ff);
+            botonSalirVR.material.color.set(0xff4444);
+        }
+    }
 
 }
 
@@ -1065,7 +1195,57 @@ loadGLTF(CHARACTER_PATH)
         console.log(error);
     });
 
+const canvasPausa = document.createElement('canvas');
+canvasPausa.width = 1024;
+canvasPausa.height = 512;
+const ctxPausa = canvasPausa.getContext('2d');
+
+ctxPausa.fillStyle = 'rgba(0, 0, 0, 0.8)';
+ctxPausa.fillRect(0, 0, canvasPausa.width, canvasPausa.height);
+
+ctxPausa.fillStyle = 'white';
+ctxPausa.font = '60px Arial';
+ctxPausa.textAlign = 'center';
+ctxPausa.fillText('PAUSADO', canvasPausa.width / 2, 100);
+
+// Botón 1: Reanudar
+ctxPausa.fillStyle = 'gray';
+ctxPausa.fillRect(362, 200, 300, 80);
+ctxPausa.fillStyle = 'white';
+ctxPausa.fillText('Reanudar', canvasPausa.width / 2, 260);
+
+// Botón 2: Salir
+ctxPausa.fillStyle = 'gray';
+ctxPausa.fillRect(362, 320, 300, 80);
+ctxPausa.fillStyle = 'white';
+ctxPausa.fillText('Salir', canvasPausa.width / 2, 380);
+
+const texturaPausa = new THREE.CanvasTexture(canvasPausa);
+const materialPausa = new THREE.SpriteMaterial({ map: texturaPausa });
+const spritePausaMenu = new THREE.Sprite(materialPausa);
+spritePausaMenu.scale.set(4, 2, 1); // tamaño visible en VR
+
+/*
+// Oculto inicialmente
+spritePausaMenu.position.set(0, -5, 0);
+camera.add(spritePausaMenu);
+*/
+
+let menuVRActivo = false;
+
+function toggleMenuVR() {
+    if (!menuVRGroup) return; // aún no cargado
+
+    menuVRGroup.visible = !menuVRGroup.visible;
+    juegoPausado = menuVRGroup.visible;
+
+    if (!menuVRGroup.visible) {
+        controller.userData.selectPressed = false;
+    }
+}
+
 // Menú de pausa (overlay oscuro con botones)
+/*
 const pausaMenu = document.createElement('div');
 pausaMenu.style.position = 'fixed';
 pausaMenu.style.top = '50%';
@@ -1077,7 +1257,8 @@ pausaMenu.style.borderRadius = '10px';
 pausaMenu.style.display = 'none';
 pausaMenu.style.zIndex = '1001';
 pausaMenu.style.textAlign = 'center';
-
+*/
+/*
 // Botón Reanudar
 const botonReanudar = document.createElement('button');
 botonReanudar.textContent = 'Reanudar';
@@ -1170,31 +1351,24 @@ function reanudarJuego() {
         superpoderEnPausa = false;
     }
 }
+*/
 
 function desactivarBomba(bomba) {
-    desactivando = true;
-    bombaEnProceso = bomba;
+    if (bombaDesactivada.has(bomba)) return;
 
-    mensajeInteraccion.innerText = 'Desactivando...';
-    mensajeInteraccion.style.display = 'block';
+    bombaDesactivada.add(bomba);
 
-    // Inicia el temporizador para completar desactivación
-    desactivarTimeout = setTimeout(() => {
-        bombaDesactivada.add(bomba);
+    // Mostrar mensaje inmediato
+    actualizarVRMensaje('¡BOMBA DESACTIVADA!');
+    vrMensajeSprite.position.set(0, -0.8, -2);
 
-        // Nuevo mensaje en el centro
-        mensajeCentral.innerText = '¡BOMBA DESACTIVADA!';
-        mensajeCentral.style.display = 'block';
+    // Añadir 1 minuto al cronómetro
+    tiempoRestante += 60;
 
-        // *** AUMENTAR 1 MINUTO (60 SEGUNDOS) ***
-        tiempoRestante += 60;
-
-        setTimeout(() => {
-            mensajeCentral.style.display = 'none';
-            desactivando = false;
-            bombaEnProceso = null;
-        }, 1700);
-    }, 5000);
+    // Ocultar mensaje después de un breve tiempo
+    setTimeout(() => {
+        vrMensajeSprite.position.set(0, -5, 0);
+    }, 2000);
 }
 
 loader.load('Cubo.glb', (gltf) => {
