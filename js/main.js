@@ -17,7 +17,7 @@ const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerH
 camera.rotation.order = 'YXZ';
 
 // Cambiar orientación inicial
-camera.lookAt(new THREE.Vector3(camera.position.x - 1, camera.position.y, camera.position.z));  // mirar hacia +X (ejemplo)
+//camera.lookAt(new THREE.Vector3(camera.position.x - 1, camera.position.y, camera.position.z));
 
 const fillLight1 = new THREE.HemisphereLight(0x8dc1de, 0x00668d, 1.5);
 fillLight1.position.set(2, 1, 1);
@@ -98,6 +98,8 @@ let vrMensajeSuperpoderSprite;
 
 let vrPantallaDerrotaSprite;
 let vrPantallaVictoriaSprite;
+
+let mensajeBombaDesactivadaActivo = false;
 
 for (let i = 0; i < NUM_SPHERES; i++) {
 
@@ -721,6 +723,7 @@ loader.load('Laberinto.glb', (gltf) => {
     playerRig.position.copy(playerStart); // usa la misma posición
     playerRig.position.set(40, 1, 1); // Esta es la posición inicial
     playerRig.add(camera);
+    playerRig.rotation.y = Math.PI / 2; // 👉 Esto hará que mire hacia +Z
 
     const canvas = document.createElement('canvas');
     canvas.width = 512;
@@ -737,10 +740,10 @@ loader.load('Laberinto.glb', (gltf) => {
     const texture = new THREE.CanvasTexture(canvas);
     const material = new THREE.SpriteMaterial({ map: texture });
     vrContadorSprite = new THREE.Sprite(material);
-    vrContadorSprite.scale.set(2.1, 0.5, .2); // tamaño del sprite
+    vrContadorSprite.scale.set(1.26, 0.3, 0.12); // tamaño del sprite
 
     camera.add(vrContadorSprite);
-    vrContadorSprite.position.set(0, 1.6, -2); // delante y debajo del centro visual
+    vrContadorSprite.position.set(0, 1, -2); // delante y debajo del centro visual
 
     // Crear grupo que contiene el menú de pausa en VR
     menuVRGroup = new THREE.Group();
@@ -824,10 +827,10 @@ loader.load('Laberinto.glb', (gltf) => {
     const textureDistancia = new THREE.CanvasTexture(canvasDistancia);
     const materialDistancia = new THREE.SpriteMaterial({ map: textureDistancia });
     vrDistanciaSprite = new THREE.Sprite(materialDistancia);
-    vrDistanciaSprite.scale.set(2.7, 0.5, .9); // tamaño del sprite
+    vrDistanciaSprite.scale.set(1.62, 0.3, 0.54); // 60% de cada valor original
 
     camera.add(vrDistanciaSprite);
-    vrDistanciaSprite.position.set(2.7, 1.6, -2); // 👈 arriba a la derecha
+    vrDistanciaSprite.position.set(2.7, 1, -2); // 👈 arriba a la derecha
 
     const canvasMsg = document.createElement('canvas');
     canvasMsg.width = 512;
@@ -951,7 +954,7 @@ loader.load('Laberinto.glb', (gltf) => {
     vrFooterSprite = new THREE.Sprite(materialFooter);
     vrFooterSprite.scale.set(5, 0.6, 1); // ancho, alto, profundidad
 
-    vrFooterSprite.position.set(0, -1.7, -2); // parte inferior del visor
+    vrFooterSprite.position.set(0, -1, -2); // parte inferior del visor
     camera.add(vrFooterSprite);
 
     scene.add(playerRig);
@@ -1104,15 +1107,16 @@ function animate() {
             const texto = `${bombaCercana.nombre}\nDistancia: ${bombaCercana.distancia.toFixed(2)} m`;
             actualizarVRDistancia(texto, color);
 
-            if (!desactivando && bombaCercana.distancia < 2.5 && !bombaDesactivada.has(bombaCercana.objeto)) {
-                vrMensajeSprite.position.set(0, -0.8, -2); // Mostrar mensaje en VR (frente al visor)
-                actualizarVRMensaje('Presiona "A" para desactivar');
-                bombaInteractuable = bombaCercana.objeto;
-            } else {
-                vrMensajeSprite.position.set(0, -5, 0);
-                bombaInteractuable = null;
+            if (!mensajeBombaDesactivadaActivo) {
+                if (!desactivando && bombaCercana.distancia < 2.5 && !bombaDesactivada.has(bombaCercana.objeto)) {
+                    vrMensajeSprite.position.set(0, -0.8, -2);
+                    actualizarVRMensaje('"A" para desactivar');
+                    bombaInteractuable = bombaCercana.objeto;
+                } else {
+                    vrMensajeSprite.position.set(0, -5, 0);
+                    bombaInteractuable = null;
+                }
             }
-
 
         } else {
             // Si ya no hay bombas activas
@@ -1471,17 +1475,18 @@ function desactivarBomba(bomba) {
 
     bombaDesactivada.add(bomba);
 
-    // Mostrar mensaje inmediato
+    mensajeBombaDesactivadaActivo = true;
+
     actualizarVRMensaje('¡BOMBA DESACTIVADA!');
     vrMensajeSprite.position.set(0, -0.8, -2);
 
-    // Añadir 1 minuto al cronómetro
     tiempoRestante += 60;
 
-    // Ocultar mensaje después de un breve tiempo
     setTimeout(() => {
         vrMensajeSprite.position.set(0, -5, 0);
+        mensajeBombaDesactivadaActivo = false;
     }, 2000);
+
 }
 
 function actualizarVRSuperpoder(texto) {
