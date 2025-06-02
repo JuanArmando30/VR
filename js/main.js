@@ -58,11 +58,16 @@ const geometryLine = new THREE.BufferGeometry().setFromPoints([
 ]);
 const laser = new THREE.Line(
     geometryLine,
-    new THREE.LineBasicMaterial({ color: 0xffff00 })
+    new THREE.LineBasicMaterial({ color: 0xffff00, linewidth: 5 }) // asegúrate del color y grosor
 );
 laser.name = 'laser';
-laser.scale.z = 4;
+laser.scale.z = 5;
 controller.add(laser);
+
+const controllerGrip = renderer.xr.getControllerGrip(0);
+const controllerModelFactory = new XRControllerModelFactory();
+controllerGrip.add(controllerModelFactory.createControllerModel(controllerGrip));
+scene.add(controllerGrip);
 
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.VSMShadowMap;
@@ -951,7 +956,7 @@ loader.load('Laberinto.glb', (gltf) => {
     vrFooterSprite = new THREE.Sprite(materialFooter);
     vrFooterSprite.scale.set(5, 0.6, 1); // ancho, alto, profundidad
 
-    vrFooterSprite.position.set(0, -.9, -2); // parte inferior del visor
+    vrFooterSprite.position.set(0, -1, -2); // parte inferior del visor
     camera.add(vrFooterSprite);
 
     scene.add(playerRig);
