@@ -156,7 +156,6 @@ function processControllerInput(deltaTime) {
             const buttons = source.gamepad.buttons;
             const buttonGB = buttons[1]; // gatillo bajo normalmente es el botón 0
             const buttonA = buttons[4];
-            const buttonB = buttons[5];
             const buttonGP = buttons[0];
             controller.userData.selectPressed = buttons[0]?.pressed || false;
 
@@ -169,12 +168,29 @@ function processControllerInput(deltaTime) {
             if (buttonA?.pressed && bombaInteractuable && !bombaDesactivada.has(bombaInteractuable) && !desactivando) {
                 desactivarBomba(bombaInteractuable);
             }
-            if (buttonB?.pressed) {
-                toggleMenuVR();
+
+            const triggerPressed = buttons[0]?.pressed || false;
+
+            if (buttonGB?.pressed || triggerPressed && !disparando) {
+                throwBall(); // 👉 dispara al presionar el gatillo
+                disparando = true;
             }
 
-            if (buttonB?.pressed && !menuVRGroup.visible) {
-                toggleMenuVR();
+            if (!triggerPressed) {
+                disparando = false;
+            }
+        }
+        if (source.handedness === 'left') {
+            const buttons = source.gamepad.buttons;
+            const buttonGB = buttons[1]; // gatillo bajo normalmente es el botón 0
+            const buttonGP = buttons[0];
+            const buttonY = buttons[5];
+            const buttonX = buttons[4];
+            controller.userData.selectPressed = buttons[0]?.pressed || false;
+
+            // Detectar si se presionó "GB"
+            if (buttonGB?.pressed && playerOnFloor) {
+                playerVelocity.y = 15; // Fuerza del salto
             }
 
             const triggerPressed = buttons[0]?.pressed || false;
@@ -186,6 +202,14 @@ function processControllerInput(deltaTime) {
 
             if (!triggerPressed) {
                 disparando = false;
+            }
+
+            if (buttonY?.pressed && !menuVRGroup.visible) {
+                toggleMenuVR(); // Pausar con botón Y
+            }
+
+            if (buttonX?.pressed) {
+                location.href = 'index.html'; // Salir del juego con botón B
             }
         }
     }
@@ -755,17 +779,17 @@ loader.load('Laberinto.glb', (gltf) => {
 
     // Fondo negro del menú
     const fondoMenu = new THREE.Mesh(
-        new THREE.PlaneGeometry(3.5, 2),
+        new THREE.PlaneGeometry(8, 5),
         new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.8 })
     );
     menuVRGroup.add(fondoMenu);
 
     // Botón Reanudar
     botonReanudarVR = new THREE.Mesh(
-        new THREE.BoxGeometry(1.5, 0.4, 0.05),
+        new THREE.BoxGeometry(2, 0.4, 0.05),
         new THREE.MeshBasicMaterial({ color: 0x4444ff })
     );
-    botonReanudarVR.position.set(0, 0.4, 0.01);
+    botonReanudarVR.position.set(0, 0.2, 0.01);
     botonReanudarVR.name = 'reanudar';
     menuVRGroup.add(botonReanudarVR);
 
@@ -777,7 +801,7 @@ loader.load('Laberinto.glb', (gltf) => {
     ctx1.fillStyle = 'white';
     ctx1.font = '32px Arial';
     ctx1.textAlign = 'center';
-    ctx1.fillText('Reanudar', 128, 40);
+    ctx1.fillText('JUEGO PAUSADO', 128, 40);
     const tex1 = new THREE.CanvasTexture(canvas1);
     const textoReanudar = new THREE.Mesh(
         new THREE.PlaneGeometry(1.5, 0.4),
@@ -786,33 +810,6 @@ loader.load('Laberinto.glb', (gltf) => {
     textoReanudar.position.copy(botonReanudarVR.position);
     textoReanudar.position.z += 0.03;
     menuVRGroup.add(textoReanudar);
-
-    // Botón Salir
-    botonSalirVR = new THREE.Mesh(
-        new THREE.BoxGeometry(1.5, 0.4, 0.05),
-        new THREE.MeshBasicMaterial({ color: 0xff4444 })
-    );
-    botonSalirVR.position.set(0, -0.3, 0.01);
-    botonSalirVR.name = 'salir';
-    menuVRGroup.add(botonSalirVR);
-
-    // Texto "Salir"
-    const canvas2 = document.createElement('canvas');
-    canvas2.width = 256;
-    canvas2.height = 64;
-    const ctx2 = canvas2.getContext('2d');
-    ctx2.fillStyle = 'white';
-    ctx2.font = '32px Arial';
-    ctx2.textAlign = 'center';
-    ctx2.fillText('Salir', 128, 40);
-    const tex2 = new THREE.CanvasTexture(canvas2);
-    const textoSalir = new THREE.Mesh(
-        new THREE.PlaneGeometry(1.5, 0.4),
-        new THREE.MeshBasicMaterial({ map: tex2, transparent: true })
-    );
-    textoSalir.position.copy(botonSalirVR.position);
-    textoSalir.position.z += 0.03;
-    menuVRGroup.add(textoSalir);
 
     const canvasDistancia = document.createElement('canvas');
     canvasDistancia.width = 512;
@@ -1191,34 +1188,6 @@ function animate() {
     playerCollider.end.set(rigPosition.x, rigPosition.y + 0.65, rigPosition.z);
 
     renderer.render(scene, camera);
-
-    if (menuVRGroup.visible) {
-        tempMatrix.identity().extractRotation(controller.matrixWorld);
-        raycaster.ray.origin.setFromMatrixPosition(controller.matrixWorld);
-        raycaster.ray.direction.set(0, 0, -1).applyMatrix4(tempMatrix);
-
-        const intersected = raycaster.intersectObjects([botonReanudarVR, botonSalirVR], false);
-
-        if (intersected.length > 0) {
-            const boton = intersected[0].object;
-
-            // Destacar el botón
-            boton.material.color.set(0xffff00);
-
-            // Si se presiona el gatillo
-            if (controller.userData.selectPressed && boton.name === 'reanudar') {
-                toggleMenuVR(); // Ocultar menú y reanudar
-            }
-
-            if (controller.userData.selectPressed && boton.name === 'salir') {
-                location.href = 'index.html'; // O salir del juego
-            }
-        } else {
-            // Resetear colores si no hay colisión
-            botonReanudarVR.material.color.set(0x4444ff);
-            botonSalirVR.material.color.set(0xff4444);
-        }
-    }
 
 }
 
