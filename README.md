@@ -11,11 +11,11 @@ Te encuentras en un extenso laberinto lleno de bombas ocultas. Tienes **8 minuto
 
 ### Controles
 
-- **W / A / S / D** — Mover al jugador
-- **Mouse click (izquierdo)** — Lanzar esferas
-- **E** — Desactivar bomba (debes estar a menos de 2 metros)
-- **P** — Pausar / Reanudar el juego
-- **M** — Mostrar / ocultar el mapa
+- **Joystick** — Mover al jugador
+- **Gatillo principal** — Lanzar esferas
+- **Botón A** — Desactivar bomba (debes estar a menos de 2.5 metros)
+- **Botón B** — Pausar / Reanudar el juego
+- **Gatillo de agarre** — Saltar
 
 ### Objetivo
 
