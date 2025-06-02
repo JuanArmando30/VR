@@ -93,6 +93,12 @@ let vrMensajeText = '';
 
 let disparando = false;
 
+let vrSuperpoderSprite;
+let vrMensajeSuperpoderSprite;
+
+let vrPantallaDerrotaSprite;
+let vrPantallaVictoriaSprite;
+
 for (let i = 0; i < NUM_SPHERES; i++) {
 
     const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
@@ -131,7 +137,7 @@ function processControllerInput(deltaTime) {
 
         // Solo mover si hay movimiento real
         if (Math.abs(x) > 0.01 || Math.abs(y) > 0.01) {
-            const speed = deltaTime * 10 * SPEED_MULTIPLIER;
+            const speed = deltaTime * 15 * SPEED_MULTIPLIER;
 
             const forward = getForwardVector().multiplyScalar(-y * speed);
             const side = getSideVector().multiplyScalar(x * speed);
@@ -203,7 +209,7 @@ contadorElement.style.borderRadius = '8px';
 contadorElement.style.textAlign = 'center';
 document.body.appendChild(contadorElement);
 */
-
+/*
 const superpoderIndicator = document.createElement('div');
 superpoderIndicator.style.position = 'absolute';
 superpoderIndicator.style.top = '75px'; // Debajo del cronómetro (ajusta si quieres)
@@ -218,6 +224,7 @@ superpoderIndicator.style.borderRadius = '8px';
 superpoderIndicator.style.textAlign = 'center';
 superpoderIndicator.style.display = 'none';
 document.body.appendChild(superpoderIndicator);
+*/
 
 // Crear fondo oscuro (overlay), oculto inicialmente
 const overlay = document.createElement('div');
@@ -248,7 +255,7 @@ overlay.style.transition = 'opacity 0.4s';
 
 let juegoPausado = false;
 let intervaloContador = null; // Para controlar el cronómetro y pausarlo
-let tiempoRestante = 8 * 60;  // Mover esta variable fuera de la función iniciarContador
+let tiempoRestante = 8.1 * 60;  // Mover esta variable fuera de la función iniciarContador
 
 let menuVRGroup;
 let botonReanudarVR;
@@ -256,6 +263,7 @@ let botonSalirVR;
 
 let vrContadorSprite;
 let vrContadorText = '';
+let vrFooterSprite;
 
 // Función para iniciar la cuenta regresiva de 8 minutos
 function iniciarContador() {
@@ -842,6 +850,110 @@ loader.load('Laberinto.glb', (gltf) => {
     vrMensajeSprite.position.set(0, -5, 0);
     camera.add(vrMensajeSprite);
 
+    const canvasSP = document.createElement('canvas');
+    canvasSP.width = 512;
+    canvasSP.height = 128;
+    const ctxSP = canvasSP.getContext('2d');
+
+    ctxSP.fillStyle = 'rgba(0,0,0,0.5)';
+    ctxSP.fillRect(0, 0, canvasSP.width, canvasSP.height);
+    ctxSP.fillStyle = 'cyan';
+    ctxSP.font = '38px Arial';
+    ctxSP.textAlign = 'center';
+    ctxSP.fillText('Superpoder: ---', canvasSP.width / 2, 80);
+
+    const textureSP = new THREE.CanvasTexture(canvasSP);
+    const materialSP = new THREE.SpriteMaterial({ map: textureSP });
+    vrSuperpoderSprite = new THREE.Sprite(materialSP);
+    vrSuperpoderSprite.scale.set(2.5, 0.6, 1);
+    vrSuperpoderSprite.position.set(0, 1.0, -2); // Centro superior del visor
+    camera.add(vrSuperpoderSprite);
+    vrSuperpoderSprite.visible = false;
+
+    const canvasMSP = document.createElement('canvas');
+    canvasMSP.width = 512;
+    canvasMSP.height = 128;
+    const ctxMSP = canvasMSP.getContext('2d');
+
+    ctxMSP.fillStyle = 'rgba(0,0,0,0.7)';
+    ctxMSP.fillRect(0, 0, canvasMSP.width, canvasMSP.height);
+    ctxMSP.fillStyle = 'yellow';
+    ctxMSP.font = '42px Arial';
+    ctxMSP.textAlign = 'center';
+    ctxMSP.fillText('¡Superpoder!', canvasMSP.width / 2, 80);
+
+    const textureMSP = new THREE.CanvasTexture(canvasMSP);
+    const materialMSP = new THREE.SpriteMaterial({ map: textureMSP });
+    vrMensajeSuperpoderSprite = new THREE.Sprite(materialMSP);
+    vrMensajeSuperpoderSprite.scale.set(3, 0.7, 1);
+    vrMensajeSuperpoderSprite.position.set(0, 0.2, -2);
+    camera.add(vrMensajeSuperpoderSprite);
+    vrMensajeSuperpoderSprite.visible = false;
+
+    const canvasDerrota = document.createElement('canvas');
+    canvasDerrota.width = 1024;
+    canvasDerrota.height = 512;
+    const ctxDerrota = canvasDerrota.getContext('2d');
+
+    ctxDerrota.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    ctxDerrota.fillRect(0, 0, canvasDerrota.width, canvasDerrota.height);
+    ctxDerrota.fillStyle = 'red';
+    ctxDerrota.font = 'bold 60px Arial';
+    ctxDerrota.textAlign = 'center';
+    ctxDerrota.fillText('¡Tiempo agotado!', canvasDerrota.width / 2, 200);
+    ctxDerrota.fillText('Has perdido...', canvasDerrota.width / 2, 300);
+
+    const textureDerrota = new THREE.CanvasTexture(canvasDerrota);
+    const materialDerrota = new THREE.SpriteMaterial({ map: textureDerrota });
+    vrPantallaDerrotaSprite = new THREE.Sprite(materialDerrota);
+    vrPantallaDerrotaSprite.scale.set(6, 3, 1);
+    vrPantallaDerrotaSprite.position.set(0, 0, -4);
+    vrPantallaDerrotaSprite.visible = false;
+
+    camera.add(vrPantallaDerrotaSprite);
+
+    const canvasVictoria = document.createElement('canvas');
+    canvasVictoria.width = 1024;
+    canvasVictoria.height = 512;
+    const ctxVictoria = canvasVictoria.getContext('2d');
+
+    ctxVictoria.fillStyle = 'rgba(0, 0, 0, 0.8)';
+    ctxVictoria.fillRect(0, 0, canvasVictoria.width, canvasVictoria.height);
+    ctxVictoria.fillStyle = 'lime';
+    ctxVictoria.font = 'bold 60px Arial';
+    ctxVictoria.textAlign = 'center';
+    ctxVictoria.fillText('¡Felicidades!', canvasVictoria.width / 2, 200);
+    ctxVictoria.fillText('Has desactivado todas las bombas', canvasVictoria.width / 2, 300);
+
+    const textureVictoria = new THREE.CanvasTexture(canvasVictoria);
+    const materialVictoria = new THREE.SpriteMaterial({ map: textureVictoria });
+    vrPantallaVictoriaSprite = new THREE.Sprite(materialVictoria);
+    vrPantallaVictoriaSprite.scale.set(6, 3, 1);
+    vrPantallaVictoriaSprite.position.set(0, 0, -4);
+    vrPantallaVictoriaSprite.visible = false;
+
+    camera.add(vrPantallaVictoriaSprite);
+
+    const canvasFooter = document.createElement('canvas');
+    canvasFooter.width = 1024;
+    canvasFooter.height = 128;
+    const ctxFooter = canvasFooter.getContext('2d');
+
+    ctxFooter.fillStyle = 'rgba(0, 0, 0, 0)';
+    ctxFooter.fillRect(0, 0, canvasFooter.width, canvasFooter.height);
+    ctxFooter.fillStyle = 'white';
+    ctxFooter.font = '28px Monospace';
+    ctxFooter.textAlign = 'center';
+    ctxFooter.fillText('©2025. Derechos reservados | Juan Armando Castillo Rodríguez', canvasFooter.width / 2, 80);
+
+    const textureFooter = new THREE.CanvasTexture(canvasFooter);
+    const materialFooter = new THREE.SpriteMaterial({ map: textureFooter, transparent: true });
+    vrFooterSprite = new THREE.Sprite(materialFooter);
+    vrFooterSprite.scale.set(5, 0.6, 1); // ancho, alto, profundidad
+
+    vrFooterSprite.position.set(0, -1.7, -2); // parte inferior del visor
+    camera.add(vrFooterSprite);
+
     scene.add(playerRig);
 
     // Llamar a iniciarContador() cuando se genere el personaje
@@ -851,24 +963,18 @@ loader.load('Laberinto.glb', (gltf) => {
 });
 
 function teleportPlayerIfOob() {
-
-    if (camera.position.y <= - 25) {
-
-        playerRig.position.copy(playerStart);
-        playerCollider.radius = 0.35;
-        camera.rotation.set(0, 0, 0);
-
-        // Cambiar orientación inicial
-        camera.lookAt(new THREE.Vector3(camera.position.x - 1, camera.position.y, camera.position.z));  // mirar hacia +X (ejemplo)
-
+    if (playerCollider.end.y < -20) {
+        playerVelocity.set(0, 0, 0);
+        playerRig.position.set(40, 1, 1); // <-- posición de reaparición
     }
-
 }
 
 // Footer
+/*
 const footer = document.createElement('footer');
 footer.innerHTML = '<p style="text-align:center; padding:10px; color:white; position:fixed; bottom:0; width:100%; font-size: 18px; font-family:\'Monospace\', sans-serif;">&copy; 2025. Todos los derechos reservados | Juan Armando Castillo Rodríguez</p>';
 document.body.appendChild(footer);
+*/
 
 // Variables para referencia de las bombas
 let bombaOriginal, bombaClon1, bombaClon2, bombaClon3, bombaClon4, bombaClon5, bombaClon6, bombaClon7, bombaClon8, bombaClon9;
@@ -902,7 +1008,7 @@ mensajeInteraccion.style.borderRadius = '10px';
 mensajeInteraccion.style.display = 'none'; // Oculto por defecto
 document.body.appendChild(mensajeInteraccion);
 */
-
+/*
 const mensajeSuperpoder = document.createElement('div');
 mensajeSuperpoder.style.position = 'absolute';
 mensajeSuperpoder.style.top = '50%';
@@ -917,6 +1023,7 @@ mensajeSuperpoder.style.borderRadius = '12px';
 mensajeSuperpoder.style.display = 'none';
 mensajeSuperpoder.style.zIndex = '1001';
 document.body.appendChild(mensajeSuperpoder);
+*/
 
 let bombaInteractuable = null;
 let bombaDesactivada = new Set(); // Para no desactivar la misma bomba múltiples veces
@@ -1001,13 +1108,19 @@ function animate() {
                 vrMensajeSprite.position.set(0, -0.8, -2); // Mostrar mensaje en VR (frente al visor)
                 actualizarVRMensaje('Presiona "A" para desactivar');
                 bombaInteractuable = bombaCercana.objeto;
+            } else {
+                vrMensajeSprite.position.set(0, -5, 0);
+                bombaInteractuable = null;
             }
+
 
         } else {
             // Si ya no hay bombas activas
             actualizarVRDistancia('Todas las bombas\nestán desactivadas', 'white');
             mensajeInteraccion.style.display = 'none';
             bombaInteractuable = null;
+
+            mostrarPantallaVictoria();
 
             // Detener cronómetro (si tienes una variable como 'cronometroActivo')
             cronometroActivo = false;
@@ -1371,6 +1484,41 @@ function desactivarBomba(bomba) {
     }, 2000);
 }
 
+function actualizarVRSuperpoder(texto) {
+    const canvas = vrSuperpoderSprite.material.map.image;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = 'rgba(0,0,0,0.5)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = 'cyan';
+    ctx.font = '38px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(texto, canvas.width / 2, 80);
+
+    vrSuperpoderSprite.material.map.needsUpdate = true;
+}
+
+function mostrarVRMensajeSuperpoder(texto) {
+    const canvas = vrMensajeSuperpoderSprite.material.map.image;
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = 'yellow';
+    ctx.font = '42px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText(texto, canvas.width / 2, 80);
+
+    vrMensajeSuperpoderSprite.material.map.needsUpdate = true;
+    vrMensajeSuperpoderSprite.visible = true;
+
+    setTimeout(() => {
+        vrMensajeSuperpoderSprite.visible = false;
+    }, 2000);
+}
+
 loader.load('Cubo.glb', (gltf) => {
     const modelo = gltf.scene;
 
@@ -1436,15 +1584,15 @@ function activarSuperpoder() {
     }
 
     tiempoRestanteSuperpoder = 15;
-    superpoderIndicator.style.display = 'block';
-    superpoderIndicator.textContent = `Superpoder: ${poder}\nTiempo: ${tiempoRestanteSuperpoder}s`;
+    vrSuperpoderSprite.visible = true;
+    actualizarVRSuperpoder(`Superpoder: ${poder}\nTiempo: ${tiempoRestanteSuperpoder}s`);
 
     // Guarda el timestamp de inicio
     inicioSuperpoderTimestamp = Date.now();
 
     intervaloSuperpoder = setInterval(() => {
         tiempoRestanteSuperpoder--;
-        superpoderIndicator.textContent = `Superpoder: ${poder}\nTiempo: ${tiempoRestanteSuperpoder}s`;
+        actualizarVRSuperpoder(`Superpoder: ${poder}\nTiempo: ${tiempoRestanteSuperpoder}s`);
 
         // Seguridad extra: si llega a 0 manualmente
         if (tiempoRestanteSuperpoder <= 0) {
@@ -1472,11 +1620,10 @@ function activarSuperpoder() {
 
 function mostrarMensajeSuperpoder(poder) {
     if (poder === 'salto') {
-        mensajeSuperpoder.innerText = '¡Super Salto Activado!';
+        mostrarVRMensajeSuperpoder('¡Super Salto Activado!');
     } else if (poder === 'velocidad') {
-        mensajeSuperpoder.innerText = '¡Super Velocidad Activada!';
+        mostrarVRMensajeSuperpoder('¡Super Velocidad Activada!');
     }
-    mensajeSuperpoder.style.display = 'block';
 
     // Ocultar automáticamente después de 2 segundos
     setTimeout(() => {
@@ -1494,10 +1641,11 @@ function finalizarSuperpoder() {
     SPEED_MULTIPLIER = 1.0;
 
     clearInterval(intervaloSuperpoder);
-    superpoderIndicator.style.display = 'none';
+    vrSuperpoderSprite.visible = false;
     ocultarMensajeSuperpoder();
 }
 
+/*
 function mostrarPantallaDerrota() {
     // Salir del PointerLock si estaba activo
     document.exitPointerLock();
@@ -1560,4 +1708,21 @@ function mostrarPantallaDerrota() {
         fondoOscuro.style.opacity = '1';
         derrotaOverlay.style.opacity = '1';
     });
+}
+*/
+
+function mostrarPantallaDerrota() {
+    vrPantallaDerrotaSprite.visible = true;
+
+    setTimeout(() => {
+        location.reload();
+    }, 6000);
+}
+
+function mostrarPantallaVictoria() {
+    vrPantallaVictoriaSprite.visible = true;
+
+    setTimeout(() => {
+        location.reload();
+    }, 6000);
 }
