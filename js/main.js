@@ -46,7 +46,16 @@ renderer.setSize(window.innerWidth, window.innerHeight);
 
 // ACTIVAR VR
 renderer.xr.enabled = true;
+
 document.body.appendChild(VRButton.createButton(renderer));
+
+renderer.xr.addEventListener('sessionstart', () => {
+    console.log('Sesión XR iniciada');
+    if (sound && !sound.isPlaying) {
+        console.log('Reproduciendo música');
+        sound.play();
+    }
+});
 
 const controller = renderer.xr.getController(0); // controlador derecho (0 o 1 según el caso)
 controller.userData.selectPressed = false;
@@ -338,9 +347,7 @@ function iniciarContador() {
     }
 
     actualizarContador(); // Mostrar de inmediato
-    if (sound && !sound.isPlaying) {
-    sound.play();
-    }
+    
     intervaloContador = setInterval(() => {
         if (!juegoPausado && tiempoRestante > 0) {
             tiempoRestante--;
@@ -992,9 +999,10 @@ loader.load('Laberinto.glb', (gltf) => {
     const audioLoader = new THREE.AudioLoader();
 
     audioLoader.load('../recursos/musica.mp3', function (buffer) {
+        console.log('Música cargada');
         sound.setBuffer(buffer);
         sound.setLoop(true);
-        sound.setVolume(.6);
+        sound.setVolume(1.0);
         // NO reproducir aún
     });
 
@@ -1540,27 +1548,27 @@ loader.load('Cubo.glb', (gltf) => {
 
     // Clon 1
     const clon1 = modelo.clone();
-    clon1.position.set(37, 3.2, -13);
+    clon1.position.set(37, -3.2, -13);
     clon1.scale.set(3, 3, 3);
 
     // Clon 2
     const clon2 = modelo.clone();
-    clon2.position.set(12.2, 3.2, 0);
+    clon2.position.set(12.2, -3.2, 0);
     clon2.scale.set(3, 3, 3);
 
     // Clon 3
     const clon3 = modelo.clone();
-    clon3.position.set(-27, 3.2, -20);
+    clon3.position.set(-27, -3.2, -20);
     clon3.scale.set(3, 3, 3);
 
     // Clon 4
     const clon4 = modelo.clone();
-    clon4.position.set(-20, 3.2, 0);
+    clon4.position.set(-20, -3.2, 0);
     clon4.scale.set(3, 3, 3);
 
     // Clon 5
     const clon5 = modelo.clone();
-    clon5.position.set(0, 3.2, 25);
+    clon5.position.set(0, -3.2, 25);
     clon5.scale.set(3, 3, 3);
 
     scene.add(clon1, clon2, clon3, clon4, clon5);
