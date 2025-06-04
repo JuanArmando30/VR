@@ -693,16 +693,18 @@ function updateSpheres(deltaTime) {
 }
 
 function getForwardVector() {
-    const direction = new THREE.Vector3(0, 0, -1); // hacia adelante en Z local
-    direction.applyQuaternion(playerRig.quaternion);
+    const direction = new THREE.Vector3(0, 0, -1);
+    const vrCamera = renderer.xr.getCamera(camera);
+    direction.applyQuaternion(vrCamera.quaternion);
     direction.y = 0;
     direction.normalize();
     return direction;
 }
 
 function getSideVector() {
-    const direction = new THREE.Vector3(1, 0, 0); // hacia la izquierda en X local
-    direction.applyQuaternion(playerRig.quaternion);
+    const direction = new THREE.Vector3(1, 0, 0);
+    const vrCamera = renderer.xr.getCamera(camera);
+    direction.applyQuaternion(vrCamera.quaternion);
     direction.y = 0;
     direction.normalize();
     return direction;
