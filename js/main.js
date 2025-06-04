@@ -784,7 +784,7 @@ loader.load('Laberinto.glb', (gltf) => {
     playerRig.position.copy(playerStart); // usa la misma posición
     playerRig.position.set(40, 1, 1); // Esta es la posición inicial
     playerRig.add(camera);
-   // playerRig.rotation.y = Math.PI / 2; // 👉 Esto hará que mire hacia +Z
+   // playerRig.rotation.y = Math.PI / 2;
 
     const canvas = document.createElement('canvas');
     canvas.width = 512;
