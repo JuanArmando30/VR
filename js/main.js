@@ -106,6 +106,13 @@ let vrPantallaVictoriaSprite;
 
 let mensajeBombaDesactivadaActivo = false;
 
+let yPresionadoAnteriormente = false;
+
+let salirConfirmacionActiva = false;
+let timeoutConfirmacionSalir = null;
+
+let listener, sound;
+
 for (let i = 0; i < NUM_SPHERES; i++) {
 
     const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
@@ -144,11 +151,11 @@ function processControllerInput(deltaTime) {
 
         // Solo mover si hay movimiento real
         if (Math.abs(x) > 0.01 || Math.abs(y) > 0.01) {
-            const speed = deltaTime * 15 * SPEED_MULTIPLIER;
+            if (juegoPausado || juegoGanado || imagenMostrada) return;
 
+            const speed = deltaTime * 15 * SPEED_MULTIPLIER;
             const forward = getForwardVector().multiplyScalar(-y * speed);
             const side = getSideVector().multiplyScalar(x * speed);
-
             playerVelocity.add(forward).add(side);
         }
 
@@ -171,8 +178,8 @@ function processControllerInput(deltaTime) {
 
             const triggerPressed = buttons[0]?.pressed || false;
 
-            if (buttonGB?.pressed || triggerPressed && !disparando) {
-                throwBall(); // 👉 dispara al presionar el gatillo
+            if ((buttonGB?.pressed || triggerPressed) && !disparando && !juegoPausado) {
+                throwBall();
                 disparando = true;
             }
 
@@ -204,13 +211,29 @@ function processControllerInput(deltaTime) {
                 disparando = false;
             }
 
-            if (buttonY?.pressed && !menuVRGroup.visible) {
-                toggleMenuVR(); // Pausar con botón Y
+            if (buttonY?.pressed && !yPresionadoAnteriormente) {
+                toggleMenuVR(); // alternar pausa/reanudar
+            }
+            yPresionadoAnteriormente = buttonY?.pressed;
+            let xPresionadoAnteriormente = false;
+
+            if (buttonX?.pressed && !xPresionadoAnteriormente) {
+                if (!salirConfirmacionActiva) {
+                    salirConfirmacionActiva = true;
+                    actualizarVRMensaje('¿Seguro que quieres salir?\nPresiona "X" otra vez para confirmar');
+                    vrMensajeSprite.position.set(0, -0.8, -2);
+
+                    timeoutConfirmacionSalir = setTimeout(() => {
+                        salirConfirmacionActiva = false;
+                        vrMensajeSprite.position.set(0, -5, 0);
+                    }, 10000); // 10 segundos para cancelar
+                } else {
+                    clearTimeout(timeoutConfirmacionSalir);
+                    location.href = 'index.html';
+                }
             }
 
-            if (buttonX?.pressed) {
-                location.href = 'index.html'; // Salir del juego con botón B
-            }
+            xPresionadoAnteriormente = buttonX?.pressed;
         }
     }
 }
@@ -315,6 +338,9 @@ function iniciarContador() {
     }
 
     actualizarContador(); // Mostrar de inmediato
+    if (sound && !sound.isPlaying) {
+    sound.play();
+    }
     intervaloContador = setInterval(() => {
         if (!juegoPausado && tiempoRestante > 0) {
             tiempoRestante--;
@@ -784,32 +810,32 @@ loader.load('Laberinto.glb', (gltf) => {
     );
     menuVRGroup.add(fondoMenu);
 
-    // Botón Reanudar
     botonReanudarVR = new THREE.Mesh(
-        new THREE.BoxGeometry(2, 0.4, 0.05),
-        new THREE.MeshBasicMaterial({ color: 0x4444ff })
+        new THREE.PlaneGeometry(2, 0.4), // plano simple sin volumen
+        new THREE.MeshBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.2 })
     );
+
     botonReanudarVR.position.set(0, 0.2, 0.01);
     botonReanudarVR.name = 'reanudar';
     menuVRGroup.add(botonReanudarVR);
 
-    // Texto "Reanudar"
-    const canvas1 = document.createElement('canvas');
-    canvas1.width = 256;
-    canvas1.height = 64;
-    const ctx1 = canvas1.getContext('2d');
-    ctx1.fillStyle = 'white';
-    ctx1.font = '32px Arial';
-    ctx1.textAlign = 'center';
-    ctx1.fillText('JUEGO PAUSADO', 128, 40);
-    const tex1 = new THREE.CanvasTexture(canvas1);
-    const textoReanudar = new THREE.Mesh(
-        new THREE.PlaneGeometry(1.5, 0.4),
-        new THREE.MeshBasicMaterial({ map: tex1, transparent: true })
+    // Texto central "PAUSADO"
+    const canvasTextoPausa = document.createElement('canvas');
+    canvasTextoPausa.width = 1024;
+    canvasTextoPausa.height = 256;
+    const ctxTextoPausa = canvasTextoPausa.getContext('2d');
+    ctxTextoPausa.fillStyle = 'white';
+    ctxTextoPausa.font = '64px Arial';
+    ctxTextoPausa.textAlign = 'center';
+    ctxTextoPausa.fillText('JUEGO\n PAUSADO', canvasTextoPausa.width / 2, 120);
+
+    const texturaTextoPausa = new THREE.CanvasTexture(canvasTextoPausa);
+    const textoPausa = new THREE.Mesh(
+        new THREE.PlaneGeometry(3, 0.8),
+        new THREE.MeshBasicMaterial({ map: texturaTextoPausa, transparent: true })
     );
-    textoReanudar.position.copy(botonReanudarVR.position);
-    textoReanudar.position.z += 0.03;
-    menuVRGroup.add(textoReanudar);
+    textoPausa.position.set(0, 0.1, 0.01); // posición centrada arriba
+    menuVRGroup.add(textoPausa);
 
     const canvasDistancia = document.createElement('canvas');
     canvasDistancia.width = 512;
@@ -957,6 +983,20 @@ loader.load('Laberinto.glb', (gltf) => {
     camera.add(vrFooterSprite);
 
     scene.add(playerRig);
+
+    // AUDIO: preparar música de fondo
+    listener = new THREE.AudioListener();
+    camera.add(listener);
+
+    sound = new THREE.Audio(listener);
+    const audioLoader = new THREE.AudioLoader();
+
+    audioLoader.load('../recursos/musica.mp3', function (buffer) {
+        sound.setBuffer(buffer);
+        sound.setLoop(true);
+        sound.setVolume(.6);
+        // NO reproducir aún
+    });
 
     // Llamar a iniciarContador() cuando se genere el personaje
     // (Solo llama esto en la función donde creas al personaje)
@@ -1690,6 +1730,10 @@ function mostrarPantallaDerrota() {
 function mostrarPantallaDerrota() {
     vrPantallaDerrotaSprite.visible = true;
 
+    if (sound && sound.isPlaying) {
+    sound.stop();
+    }
+
     setTimeout(() => {
         location.reload();
     }, 6000);
@@ -1697,6 +1741,10 @@ function mostrarPantallaDerrota() {
 
 function mostrarPantallaVictoria() {
     vrPantallaVictoriaSprite.visible = true;
+
+    if (sound && sound.isPlaying) {
+    sound.stop();
+    }
 
     setTimeout(() => {
         location.reload();
